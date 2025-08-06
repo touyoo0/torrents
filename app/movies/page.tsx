@@ -52,49 +52,66 @@ interface Movie {
   trailer_url?: string;
 }
 
-const MOVIES_PER_PAGE = 20;
+const MOVIES_PER_PAGE = 20; // Réduit pour améliorer les performances de chargement
 
 export default function MoviesPage() {
   const [movies, setMovies] = useState<Movie[]>([]);
-  const [offset, setOffset] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [overviewMovie, setOverviewMovie] = useState<Movie | null>(null);
-  const loader = useRef<HTMLDivElement | null>(null);
 
-  const fetchMovies = useCallback(async () => {
-    if (loading || !hasMore) return;
+  const fetchMovies = useCallback(async (page: number) => {
     setLoading(true);
+    const offset = (page - 1) * MOVIES_PER_PAGE;
     const res = await fetch(`/api/movies?limit=${MOVIES_PER_PAGE}&offset=${offset}`);
+    
     if (res.ok) {
-      const newMovies = await res.json();
-      setMovies((prev) => [...prev, ...newMovies]);
-      setOffset((prev) => prev + MOVIES_PER_PAGE);
-      if (newMovies.length < MOVIES_PER_PAGE) setHasMore(false);
+      const data = await res.json();
+      const { movies: newMovies, total } = data;
+      
+      // Vérifier s'il y a des doublons
+      const uniqueTitles = new Set<string>();
+      const filteredMovies = newMovies.filter((movie: Movie) => {
+        if (uniqueTitles.has(movie.title)) {
+          return false; // Ignorer les doublons
+        }
+        uniqueTitles.add(movie.title);
+        return true;
+      });
+      
+      setMovies(filteredMovies);
+      
+      // Utiliser le nombre total de films renvoyé par l'API
+      setTotalPages(Math.ceil(total / MOVIES_PER_PAGE));
     }
     setLoading(false);
-  }, [offset, hasMore, loading]);
-
-  useEffect(() => {
-    fetchMovies();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  
+  // Fonction pour récupérer uniquement le nombre total de films
+  const fetchTotalMovies = useCallback(async () => {
+    const res = await fetch(`/api/movies?count=true`);
+    if (res.ok) {
+      const data = await res.json();
+      setTotalPages(Math.ceil(data.total / MOVIES_PER_PAGE));
+    }
   }, []);
 
   useEffect(() => {
-    if (!loader.current || !hasMore) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          fetchMovies();
-        }
-      },
-      { threshold: 1 }
-    );
-    observer.observe(loader.current);
-    return () => {
-      if (loader.current) observer.unobserve(loader.current);
-    };
-  }, [fetchMovies, hasMore]);
+    fetchMovies(currentPage);
+    // Remonter en haut de la page lors du changement de page
+    window.scrollTo(0, 0);
+  }, [currentPage, fetchMovies]);
+  
+  // Charger le nombre total de films au chargement initial
+  useEffect(() => {
+    fetchTotalMovies();
+  }, [fetchTotalMovies]);
+  
+  const handlePageChange = (page: number) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-950 via-slate-900 to-gray-950 px-4 py-12 font-sans">
@@ -119,39 +136,29 @@ export default function MoviesPage() {
           animate="show"
           className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8"
         >
-          <AnimatePresence>
-            {movies.map((movie, i) => (
-              <motion.div 
-                key={`${movie.id}-${i}`} 
-                variants={item}
-                layout
-                initial="hidden"
-                animate="show"
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ duration: 0.3 }}
-                className="h-full"
-              >
-                <MovieCard movie={movie} index={i} />
-              </motion.div>
-            ))}
-          </AnimatePresence>
+          {movies.map((movie, index) => (
+            <motion.div key={movie.id} variants={item} className="h-full">
+              <MovieCard movie={movie} index={index} />
+            </motion.div>
+          ))}
         </motion.div>
 
-        {hasMore && (
+        {/* Pagination removed as per user request */}
+        
+        {/* Loader */}
+        {loading && (
           <motion.div 
-            ref={loader}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex justify-center py-16"
+            className="mt-8 flex justify-center"
           >
             <motion.div
               animate={{
-                scale: [1, 1.1, 1],
-              }}
-              transition={{
-                duration: 1.5,
-                repeat: Infinity,
-                repeatType: "reverse",
+                scale: [1, 1.05, 1],
+                transition: {
+                  repeat: Infinity,
+                  duration: 1.5,
+                }
               }}
               className="flex items-center justify-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-full backdrop-blur-sm border border-white/5 shadow-lg"
             >
@@ -171,7 +178,7 @@ function MovieCard({ movie, index }: { movie: Movie; index: number }) {
   const theme = cardThemes[index % cardThemes.length];
 
   return (
-    <Link href={`/movies/${movie.id}`} className="group h-full block">
+    <Link href={`/movies/title/${encodeURIComponent(movie.title)}`} className="group h-full block">
       <div className="relative h-full overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl transition-all duration-500 hover:shadow-purple-500/20">
         {/* Effet de bordure animée */}
         <div className={`absolute inset-0 rounded-2xl p-[1px]`}>
