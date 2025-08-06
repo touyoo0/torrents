@@ -171,6 +171,12 @@ def C_filter_torrents(**kwargs):
             logger.info(f"Torrent ignoré (taille non conforme): {name} - ({size}Go)")
 
     ti.xcom_push(key='torrents_filtered', value=torrents_filtered)
+
+    if len(torrents_filtered) == 0:
+        logger.info("Aucun torrent filtré, les étapes suivantes seront ignorées")
+        # On passe un flag pour indiquer que les tâches suivantes doivent être ignorées
+        ti.xcom_push(key='skip_next_tasks', value=True)
+
     return len(torrents_filtered)
 
 def D_check_existing_torrents(**kwargs):
@@ -178,6 +184,10 @@ def D_check_existing_torrents(**kwargs):
     ti = kwargs['ti']
     torrents_filtered = ti.xcom_pull(key='torrents_filtered')
     db = ti.xcom_pull(key='db')
+    skip_next_tasks = ti.xcom_pull(key='skip_next_tasks')
+    if skip_next_tasks:
+        logger.info("Étape ignorée: aucun torrent filtré")
+        raise AirflowSkipException("Aucun torrent filtré")
     try:
         torrents_checked = []
         
@@ -202,6 +212,10 @@ def D_check_existing_torrents(**kwargs):
         cursor.close()
         conn.close()
         ti.xcom_push(key='torrents_checked', value=torrents_checked)
+        if len(torrents_checked) == 0:
+            logger.info("Aucun torrent à vérifier, les étapes suivantes seront ignorées")
+            # On passe un flag pour indiquer que les tâches suivantes doivent être ignorées
+            ti.xcom_push(key='skip_next_tasks', value=True)
         return len(torrents_checked)
 
     except Exception as e:
@@ -211,6 +225,10 @@ def D_check_existing_torrents(**kwargs):
 def E_get_tmdb_details(**kwargs):
     """Étape 5: Obtenir les détails des films et séries"""
     ti = kwargs['ti']
+    skip_next_tasks = ti.xcom_pull(key='skip_next_tasks')
+    if skip_next_tasks:
+        logger.info("Étape ignorée: aucun torrent à vérifier")
+        raise AirflowSkipException("Aucun torrent à vérifier")
     try:
         tmdb_key = ti.xcom_pull(key='tmdb_key')
         torrents_checked = ti.xcom_pull(key='torrents_checked')
@@ -322,6 +340,10 @@ def E_get_tmdb_details(**kwargs):
         raise
 
     ti.xcom_push(key='torrents_tmdb', value=torrents_tmdb)
+    if len(torrents_tmdb) == 0:
+        logger.info("Aucun torrent à traiter, les étapes suivantes seront ignorées")
+        # On passe un flag pour indiquer que les tâches suivantes doivent être ignorées
+        ti.xcom_push(key='skip_next_tasks', value=True)
     return len(torrents_tmdb)
 
 def F_filter_existing_torrents(**kwargs):
@@ -329,6 +351,10 @@ def F_filter_existing_torrents(**kwargs):
     ti = kwargs['ti']
     torrents_tmdb = ti.xcom_pull(key='torrents_tmdb')
     db = ti.xcom_pull(key='db')
+    skip_next_tasks = ti.xcom_pull(key='skip_next_tasks')
+    if skip_next_tasks:
+        logger.info("Étape ignorée: aucun torrent à traiter")
+        raise AirflowSkipException("Aucun torrent à traiter")
     torrents_new = []
 
     try:
@@ -339,6 +365,19 @@ def F_filter_existing_torrents(**kwargs):
             db=json.loads(db)["DB_NAME"]
             )
         cursor = conn.cursor()
+
+        # Dédupliquer par title en gardant le torrent de plus petite taille
+        title_to_torrent = {}
+        for torrent in torrents_tmdb:
+            t = title_to_torrent.get(torrent['title'])
+            if t is None:
+                title_to_torrent[torrent['title']] = torrent
+            elif torrent['size'] < t['size']:
+                logger.info(f"Remplacement: pour title '{torrent['title']}', le torrent '{t['name']}' ({t['size']}) est remplacé par '{torrent['name']}' ({torrent['size']}) car plus petit.")
+                title_to_torrent[torrent['title']] = torrent
+            else:
+                logger.info(f"Ignoré: pour title '{torrent['title']}', le torrent '{torrent['name']}' ({torrent['size']}) est plus gros que '{t['name']}' ({t['size']})")
+        torrents_tmdb = list(title_to_torrent.values())
 
         for torrent in torrents_tmdb:
 
@@ -389,6 +428,10 @@ def F_filter_existing_torrents(**kwargs):
         conn.close()
 
         ti.xcom_push(key='torrents_new', value=torrents_new)
+        if len(torrents_new) == 0:
+            logger.info("Aucun torrent à traiter, les étapes suivantes seront ignorées")
+            # On passe un flag pour indiquer que les tâches suivantes doivent être ignorées
+            ti.xcom_push(key='skip_next_tasks', value=True)
         return len(torrents_new)
 
     except Exception as e:
@@ -402,9 +445,18 @@ def G_get_torrents_data(**kwargs):
     ti = kwargs['ti']
     ygg = ti.xcom_pull(key='ygg')
     base_url = json.loads(ygg)["BASE_URL"]
+    skip_next_tasks = ti.xcom_pull(key='skip_next_tasks')
+    if skip_next_tasks:
+        logger.info("Étape ignorée: aucun torrent à traiter")
+        raise AirflowSkipException("Aucun torrent à traiter")
     torrents_new = ti.xcom_pull(key='torrents_new', task_ids='F_filter_existing_torrents')
 
     torrents_data = []
+
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+    }
+
 
     for torrent in torrents_new:
 
@@ -424,7 +476,7 @@ def G_get_torrents_data(**kwargs):
 
         logger.info(f"Récupération des données du torrent {title}")
         url = base_url + "torrent/" + str(id)
-        response = requests.get(url)
+        response = requests.get(url, headers=headers)
         if response.status_code != 200:
             logger.error(f"Erreur lors de la récupération des données sur l'api {url}: {response.status_code}")
             continue
@@ -433,7 +485,7 @@ def G_get_torrents_data(**kwargs):
             size = round(response_torrent['size'] / (1024**3), 2)
             info_hash = response_torrent['hash']
             created_at = response_torrent['uploaded_at']
-
+            print(response_torrent)
             if not all([info_hash, name, size, created_at]):
                 logger.warning(f"Torrent incomplet ignoré: {name}")
                 continue
@@ -457,11 +509,19 @@ def G_get_torrents_data(**kwargs):
                 
             })
     ti.xcom_push(key='torrents_data', value=torrents_data)
+    if len(torrents_data) == 0:
+        logger.info("Aucun torrent à traiter, les étapes suivantes seront ignorées")
+        # On passe un flag pour indiquer que les tâches suivantes doivent être ignorées
+        ti.xcom_push(key='skip_next_tasks', value=True)
     return len(torrents_data)
 
 def H_add_torrents(**kwargs):
     """Étape 8: Ajouter les torrents"""
     ti = kwargs['ti']
+    skip_next_tasks = ti.xcom_pull(key='skip_next_tasks')
+    if skip_next_tasks:
+        logger.info("Étape ignorée: aucun torrent à traiter")
+        raise AirflowSkipException("Aucun torrent à traiter")
     try:
         db = ti.xcom_pull(key='db')
         torrents_data = ti.xcom_pull(key='torrents_data', task_ids='G_get_torrents_data')
@@ -498,58 +558,21 @@ def H_add_torrents(**kwargs):
             logger.info(f"Torrent ajouté avec succès: {name}")
         cursor.close()
         conn.close()
-
+        if len(torrents_data) == 0:
+            logger.info("Aucun torrent à traiter, les étapes suivantes seront ignorées")
+            # On passe un flag pour indiquer que les tâches suivantes doivent être ignorées
+            ti.xcom_push(key='skip_next_tasks', value=True)
         return len(torrents_data)
     except Exception as e:
         logger.error(f"Erreur lors de l'ajout des torrents: {str(e)}")
         raise
-
-def I_add_series_subscription(**kwargs):
-    """Étape 9: Ajouter les séries dans series_subscription"""
-    ti = kwargs['ti']
-    try:
-        db = ti.xcom_pull(key='db')
-        torrents_data = ti.xcom_pull(key='torrents_data', task_ids='G_get_torrents_data')
-    
-        new_series = []
-
-        conn = pymysql.connect(
-            host=json.loads(db)["DB_HOST"],
-            user=json.loads(db)["DB_USER"],
-            password=json.loads(db)["DB_PASSWORD"],
-            db=json.loads(db)["DB_NAME"]
-            )
-        cursor = conn.cursor()
-
-        for torrent in torrents_data:
-            title = torrent['title']
-            category = torrent['category']
-            if category == "Série":
-                cursor.execute("SELECT * FROM series_subscription WHERE title = %s", (title,))
-                existing_torrent = cursor.fetchone()
-                if existing_torrent:
-                    logger.info(f"Série non ajoutée (déja existante): {title}")
-                    continue
-                else:
-                    cursor.execute("INSERT INTO series_subscription (Série,Statut,last_saison,last_episode) VALUES (%s, %s, %s, %s)", (title, 'Non actif', '1', '1'))
-                    conn.commit()
-                    logger.info(f"Série ajoutée avec succès: {title}")
-                    new_series.append(title)
-        cursor.close()
-        conn.close()
-
-        return len(new_series)
-    except Exception as e:
-        logger.error(f"Erreur lors de la connexion à la base de données: {str(e)}")
-        raise
-
 
 # Définition du DAG
 with DAG(
     "torrents_get",
     default_args=default_args,
     description="Récupère les nouveaux torrents depuis l'api YGG",
-    schedule_interval="* * * 1 * *",  # modifie cette ligne
+    schedule_interval="0 * * * *",  # s'exécute toutes les heures (à la minute 0)
     start_date=days_ago(1),
     catchup=False,
     tags=["torrents"],
@@ -569,7 +592,6 @@ with DAG(
     6. **F_filter_existing_torrents**: Filtrage des torrents existants
     7. **G_get_torrents_data**: Obtenir les données des torrents
     8. **H_add_torrents**: Ajout des torrents
-    9. **I_add_series_subscription**: Ajout des séries dans series_subscription
     """
     
     # Étape 1: Récupérer les variables depuis Airflow
@@ -651,15 +673,5 @@ with DAG(
         Cette tâche ajoute les torrents.
         """
     )
-    
-    # Étape 9: Ajout des séries dans series_subscription
-    I_add_series_subscription_task = PythonOperator(
-        task_id="I_add_series_subscription",
-        python_callable=I_add_series_subscription,
-        doc_md="""### Ajout des séries dans series_subscription
-        
-        Cette tâche ajoute les séries dans series_subscription.
-        """
-    )
     # Définir l'ordre d'exécution des tâches    
-    A_retrieve_variables_task >> B_get_torrents_task >> C_filter_torrents_task >> D_check_existing_torrents_task >> E_get_tmdb_details_task >> F_filter_existing_torrents_task >> G_get_torrents_data_task >> H_add_torrents_task >> I_add_series_subscription_task
+    A_retrieve_variables_task >> B_get_torrents_task >> C_filter_torrents_task >> D_check_existing_torrents_task >> E_get_tmdb_details_task >> F_filter_existing_torrents_task >> G_get_torrents_data_task >> H_add_torrents_task
