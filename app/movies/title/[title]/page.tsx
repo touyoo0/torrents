@@ -81,9 +81,11 @@ export default async function MovieTitlePage({ params }: { params: { title: stri
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-slate-900 to-gray-950 text-white p-8">
-      <Link href="/movies" className="flex items-center text-slate-300 hover:text-white mb-8">
-        <FiArrowLeft className="mr-2" /> Retour aux films
-      </Link>
+      <div className="flex justify-center w-full mb-8">
+        <Link href="/movies" className="flex items-center text-slate-300 hover:text-white">
+          <FiArrowLeft className="mr-2" /> Retour aux films
+        </Link>
+      </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Affiche du film */}
@@ -142,31 +144,39 @@ export default async function MovieTitlePage({ params }: { params: { title: stri
           
           {/* Liste des versions disponibles */}
           <div className="mt-8">
-            <h2 className="text-xl font-semibold mb-4">Versions disponibles ({movies.length})</h2>
-            <div className="space-y-4">
+            <h2 className="text-xl font-semibold mb-4">Versions disponibles</h2>
+            <div className="space-y-4"> 
               {movies.map((movie) => (
                 <div 
                   key={movie.id}
-                  className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 hover:bg-slate-800 transition-colors"
+                  className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 hover:bg-slate-800 transition-colors"
                 >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded">
-                          {extractQuality(movie.name)}
-                        </span>
-                      </div>
-                      <div className="text-sm text-slate-400 mt-1">
-                        <p>Taille: {formatSize(movie.size)}</p>
-                      </div>
+                  {/* Première ligne: qualité, taille et bouton de téléchargement */}
+                  <div className="flex justify-between items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded flex-shrink-0">
+                        {extractQuality(movie.name)}
+                      </span>
+                      <span className="text-sm text-slate-400">
+                        {formatSize(movie.size)}
+                      </span>
                     </div>
+                    
+                    {/* Bouton de téléchargement */}
                     <a 
                       href={`magnet:?xt=urn:btih:${movie.info_hash}`}
-                      className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white p-2 rounded-lg"
+                      className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-lg inline-flex items-center justify-center w-7 h-7 p-1.5 flex-shrink-0"
                       title="Télécharger"
                     >
-                      <FiDownload size={20} />
+                      <FiDownload className="w-4 h-4" />
                     </a>
+                  </div>
+                  
+                  {/* Deuxième ligne: nom du torrent */}
+                  <div className="text-sm text-slate-300 overflow-hidden">
+                    <div style={{ wordBreak: 'break-all', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {movie.name}
+                    </div>
                   </div>
                 </div>
               ))}

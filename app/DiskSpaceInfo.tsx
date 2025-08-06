@@ -26,9 +26,29 @@ export default function DiskSpaceInfo() {
   }
 
   const [open, setOpen] = useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Fonction pour gérer les clics en dehors du composant
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node) && open) {
+        setOpen(false);
+      }
+    }
+    
+    // Ajouter l'écouteur d'événement quand le composant est ouvert
+    if (open) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    
+    // Nettoyer l'écouteur d'événement
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [open]); // Dépendance à l'état 'open'
 
   return (
-    <div style={{ position: "fixed", top: 12, left: 16, zIndex: 1000 }}>
+    <div ref={containerRef} style={{ position: "fixed", top: 12, left: 16, zIndex: 1000 }}>
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label="Afficher l'espace disque"
