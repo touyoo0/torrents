@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import localFont from 'next/font/local';
-import DiskSpaceInfo from "./DiskSpaceInfo";
+import Navigation from "./components/Navigation";
 import "./globals.css";
 
 const gilroy = localFont({
@@ -39,10 +39,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${gilroy.variable} antialiased`}
+        className={`${gilroy.variable} antialiased bg-black text-white`}
       >
-        <DiskSpaceInfo />
-        {children}
+        <Navigation />
+        <div className="pt-14">
+          {children}
+        </div>
       </body>
     </html>
   );
