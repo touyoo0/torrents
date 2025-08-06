@@ -42,6 +42,9 @@ export default function Navigation() {
         <div className="flex items-center">
           <span className="text-lg font-bold text-white italic md:hidden">MENU</span>
           <div className="hidden md:flex space-x-6 ml-0">
+            <NavLink href="/" active={isActive('/')}>
+              Accueil
+            </NavLink>
             <NavLink href="/movies" active={isActive('/movies')}>
               Films
             </NavLink>
@@ -98,6 +101,9 @@ export default function Navigation() {
           <div className="absolute top-full left-0 right-0 bg-black border-b border-gray-800 shadow-lg md:hidden">
             <div className="container mx-auto px-4 py-3">
               <div className="flex flex-col space-y-4 pb-4">
+                <MobileNavLink href="/" active={isActive('/')} onClick={() => setIsMenuOpen(false)}>
+                  Accueil
+                </MobileNavLink>
                 <MobileNavLink href="/movies" active={isActive('/movies')} onClick={() => setIsMenuOpen(false)}>
                   Films
                 </MobileNavLink>
