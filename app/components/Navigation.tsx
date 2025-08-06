@@ -74,7 +74,7 @@ export default function Navigation() {
           ) : (
             <div className="flex items-center">
               <div className="mr-3">
-                <span className="font-medium">{Math.round(free / 1024 / 1024 / 1024)} Go</span> libres 
+                <span className="font-medium">{Math.round(free)} Go</span> libres 
                 <span className="text-gray-400 text-xs">({Math.round(percent)}%)</span>
               </div>
               <div className="w-24 h-2 bg-gray-700 rounded-full overflow-hidden">
@@ -132,7 +132,7 @@ export default function Navigation() {
                   ) : (
                     <div className="flex flex-col">
                       <div className="mb-2">
-                        <span className="font-medium">{Math.round(free / 1024 / 1024 / 1024)} Go</span> libres 
+                        <span className="font-medium">{Math.round(free)} Go</span> libres 
                         <span className="text-gray-400 text-xs">({Math.round(percent)}%)</span>
                       </div>
                       <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
