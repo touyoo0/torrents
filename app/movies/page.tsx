@@ -52,6 +52,13 @@ interface Movie {
   trailer_url?: string;
 }
 
+interface YearRange {
+  label: string;
+  value: string;
+  startYear: number;
+  endYear: number;
+}
+
 const MOVIES_PER_PAGE = 20; // Réduit pour améliorer les performances de chargement
 
 export default function MoviesPage() {
@@ -60,11 +67,78 @@ export default function MoviesPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [overviewMovie, setOverviewMovie] = useState<Movie | null>(null);
+  
+  // États pour la recherche et les filtres
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedGenre, setSelectedGenre] = useState<string>('all');
+  const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('latest');
+  
+  // Liste prédéfinie des genres
+  const allGenres = [
+    'Action', 'Aventure', 'Animation', 'Comédie', 'Crime', 'Documentaire', 'Drame',
+    'Familial', 'Fantastique', 'Guerre', 'Historique', 'Horreur', 'Musical',
+    'Mystère', 'Romance', 'Science-Fiction', 'Téléfilm', 'Thriller', 'Western'
+  ];
+  
+  // Générer les plages d'années
+  const currentYear = new Date().getFullYear();
+  const yearRanges: YearRange[] = [];
+  
+  // Ajouter les décennies jusqu'aux années 90
+  for (let year = 1950; year < 1990; year += 10) {
+    yearRanges.push({
+      label: `Années ${year.toString().substring(2)}`,
+      value: `decade_${year}`,
+      startYear: year,
+      endYear: year + 9
+    });
+  }
+  
+  // Ajouter les années 90
+  yearRanges.push({
+    label: 'Années 90',
+    value: 'decade_1990',
+    startYear: 1990,
+    endYear: 1999
+  });
+  
+  // Ajouter les années individuelles à partir de 2000 jusqu'à l'année en cours
+  for (let year = 2000; year <= currentYear; year++) {
+    yearRanges.push({
+      label: year.toString(),
+      value: `year_${year}`,
+      startYear: year,
+      endYear: year
+    });
+  }
+  
+  // Trier par année décroissante
+  yearRanges.sort((a, b) => b.startYear - a.startYear);
 
   const fetchMovies = useCallback(async (page: number) => {
     setLoading(true);
     const offset = (page - 1) * MOVIES_PER_PAGE;
-    const res = await fetch(`/api/movies?limit=${MOVIES_PER_PAGE}&offset=${offset}`);
+    
+    // Construire les paramètres de requête
+    const params = new URLSearchParams({
+      limit: MOVIES_PER_PAGE.toString(),
+      offset: offset.toString(),
+      ...(searchQuery && { q: searchQuery }),
+      ...(selectedGenre !== 'all' && { genre: selectedGenre }),
+      ...(sortBy && { sort: sortBy })
+    });
+    
+    // Gérer les plages d'années
+    if (selectedYear !== 'all') {
+      const yearRange = yearRanges.find(range => range.value === selectedYear);
+      if (yearRange) {
+        params.append('startYear', yearRange.startYear.toString());
+        params.append('endYear', yearRange.endYear.toString());
+      }
+    }
+    
+    const res = await fetch(`/api/movies?${params.toString()}`);
     
     if (res.ok) {
       const data = await res.json();
@@ -103,6 +177,79 @@ export default function MoviesPage() {
     window.scrollTo(0, 0);
   }, [currentPage, fetchMovies]);
   
+  // Fonction pour déclencher la recherche
+  const handleSearch = useCallback(() => {
+    setCurrentPage(1);
+    // Appel direct à fetch avec les paramètres actuels
+    const offset = 0; // Première page
+    
+    // Construire les paramètres de requête
+    const params = new URLSearchParams({
+      limit: MOVIES_PER_PAGE.toString(),
+      offset: offset.toString(),
+      ...(searchQuery && { q: searchQuery }),
+      ...(selectedGenre !== 'all' && { genre: selectedGenre }),
+      ...(sortBy && { sort: sortBy })
+    });
+    
+    // Gérer les plages d'années
+    if (selectedYear !== 'all') {
+      const yearRange = yearRanges.find(range => range.value === selectedYear);
+      if (yearRange) {
+        params.append('startYear', yearRange.startYear.toString());
+        params.append('endYear', yearRange.endYear.toString());
+      }
+    }
+    
+    // Effectuer la recherche
+    console.log('Requête API envoyée:', `/api/movies?${params.toString()}`);
+    setLoading(true);
+    
+    fetch(`/api/movies?${params.toString()}`)
+      .then(res => {
+        console.log('Réponse reçue, statut:', res.status);
+        if (!res.ok) {
+          throw new Error(`Erreur HTTP: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(data => {
+        console.log('Données reçues:', data);
+        if (data && Array.isArray(data.movies)) {
+          console.log('Nombre de films reçus:', data.movies.length);
+          setMovies(data.movies);
+          setTotalPages(Math.ceil(data.total / MOVIES_PER_PAGE));
+        } else {
+          console.error('Format de données inattendu:', data);
+          setMovies([]);
+          setTotalPages(1);
+        }
+      })
+      .catch(error => {
+        console.error('Erreur lors de la recherche:', error);
+        setMovies([]);
+        setTotalPages(1);
+      })
+      .finally(() => {
+        console.log('Fin du chargement');
+        setLoading(false);
+      });
+  }, [searchQuery, selectedGenre, selectedYear, sortBy, yearRanges]);
+  
+  // Recherche automatique après un délai (désactivé au profit du bouton Rechercher)
+  // useEffect(() => {
+  //   const timer = setTimeout(() => {
+  //     fetchMovies(1);
+  //   }, 300);
+  //   
+  //   return () => clearTimeout(timer);
+  // }, [searchQuery, selectedGenre, selectedYear, sortBy]);
+  
+  // Recharger les films lors du changement de page
+  useEffect(() => {
+    fetchMovies(currentPage);
+  }, [currentPage, fetchMovies]);
+  
   // Charger le nombre total de films au chargement initial
   useEffect(() => {
     fetchTotalMovies();
@@ -122,27 +269,163 @@ export default function MoviesPage() {
           transition={{ duration: 0.6 }}
           className="text-center mb-16"
         >
-          <h1 className="text-5xl md:text-6xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 font-display">
-            Découvrez nos films
+          <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 font-display">
+            Films
           </h1>
-          <p className="text-gray-400 max-w-2xl mx-auto text-lg">
-            Une sélection des meilleurs films disponibles
-          </p>
+          <br />
+          
+          {/* Barre de recherche */}
+          <div className="w-full max-w-2xl mx-auto mb-8">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Rechercher un film..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                className="w-full px-6 py-3 pr-12 rounded-full bg-slate-800 border border-slate-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+              />
+              <svg 
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            
+            {/* Filtres */}
+            <div className="flex flex-wrap justify-center gap-4 mt-4">
+              {/* Filtre par genre */}
+              <div className="relative">
+                <select
+                  value={selectedGenre}
+                  onChange={(e) => setSelectedGenre(e.target.value)}
+                  className="appearance-none bg-slate-800 border border-slate-700 text-white text-sm rounded-full px-4 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  <option value="all">Tous les genres</option>
+                  {allGenres.map((genre) => (
+                    <option key={genre} value={genre}>
+                      {genre}
+                    </option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                  <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                  </svg>
+                </div>
+              </div>
+              
+              {/* Filtre par année */}
+              <div className="relative">
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  className="appearance-none bg-slate-800 border border-slate-700 text-white text-sm rounded-full px-4 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  <option value="all">Toutes les années</option>
+                  {yearRanges.map((range) => (
+                    <option key={range.value} value={range.value}>
+                      {range.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                  <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                  </svg>
+                </div>
+              </div>
+              
+              {/* Tri */}
+              <div className="relative">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="appearance-none bg-slate-800 border border-slate-700 text-white text-sm rounded-full px-4 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  <option value="latest">Plus récents</option>
+                  <option value="oldest">Plus anciens</option>
+                  <option value="title_asc">Titre (A-Z)</option>
+                  <option value="title_desc">Titre (Z-A)</option>
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                  <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                  </svg>
+                </div>
+              </div>
+              
+              {/* Bouton Rechercher */}
+              <button
+                onClick={handleSearch}
+                disabled={loading}
+                className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-sm font-medium rounded-full hover:opacity-90 transition-opacity flex items-center gap-2 shadow-lg shadow-blue-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Recherche...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    Rechercher
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </motion.div>
+
+        {/* Loader */}
+        {loading && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mt-1 mb-1 flex justify-center"
+          >
+            <motion.div
+              animate={{
+                scale: [1, 1.05, 1],
+                transition: {
+                  repeat: Infinity,
+                  duration: 1.5,
+                }
+              }}
+              className="flex items-center justify-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-full backdrop-blur-sm border border-white/5 shadow-lg"
+            >
+              <FiLoader className="w-5 h-5 text-blue-400 animate-spin" />
+              <span className="text-blue-300 font-medium">Chargement des films...</span>
+            </motion.div>
+          </motion.div>
+        )}
 
         <motion.div 
           variants={container}
           initial="hidden"
-          animate="show"
-          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8"
+          animate={!loading ? "show" : "hidden"}
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8 mt-4"
         >
-          {movies.map((movie, index) => (
+          {!loading && movies.length === 0 ? (
+            <div className="col-span-full text-center py-12 text-gray-400">
+              Aucun film trouvé avec ces critères de recherche.
+            </div>
+          ) : (
+            movies.map((movie, index) => (
             <motion.div key={movie.id} variants={item} className="h-full">
               <MovieCard movie={movie} index={index} />
             </motion.div>
-          ))}
+          )))}
         </motion.div>
-
+        
         {/* Pagination */}
         {totalPages > 1 && (
           <motion.div 
@@ -230,29 +513,6 @@ export default function MoviesPage() {
             </div>
           </motion.div>
         )}
-        
-        {/* Loader */}
-        {loading && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mt-8 flex justify-center"
-          >
-            <motion.div
-              animate={{
-                scale: [1, 1.05, 1],
-                transition: {
-                  repeat: Infinity,
-                  duration: 1.5,
-                }
-              }}
-              className="flex items-center justify-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-full backdrop-blur-sm border border-white/5 shadow-lg"
-            >
-              <FiLoader className="w-5 h-5 text-blue-400 animate-spin" />
-              <span className="text-blue-300 font-medium">Chargement des films...</span>
-            </motion.div>
-          </motion.div>
-        )}
       </div>
     </main>
   );
@@ -264,23 +524,24 @@ function MovieCard({ movie, index }: { movie: Movie; index: number }) {
   const theme = cardThemes[index % cardThemes.length];
 
   return (
-    <Link href={`/movies/title/${encodeURIComponent(movie.title)}`} className="group h-full block">
-      <div className="relative h-full overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl transition-all duration-500 hover:shadow-purple-500/20">
+    <Link href={`/movies/title/${encodeURIComponent(movie.title)}`} className="group h-full block p-1.5">
+      <div className="relative h-full overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl transition-all duration-500 hover:shadow-purple-500/20 border-2 border-white/20 group-hover:border-white/40">
         {/* Effet de bordure animée */}
-        <div className={`absolute inset-0 rounded-2xl p-[1px]`}>
-          <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${theme} opacity-0 group-hover:opacity-100 transition-opacity duration-500`}></div>
+        <div className={`absolute inset-0 rounded-2xl p-[2px]`}>
+          <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${theme} opacity-0 group-hover:opacity-100 transition-all duration-500`}></div>
         </div>
 
         <div className="relative z-10 flex h-full flex-col">
           {/* Image avec effet de zoom */}
-          <div className="relative overflow-hidden rounded-t-2xl">
+          <div className="relative aspect-[2/3] overflow-hidden rounded-t-2xl border-b border-white/5 bg-slate-800">
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10"></div>
             
             {movie.poster_url ? (
               <motion.img
                 src={movie.poster_url}
                 alt={movie.title}
-                className="h-[320px] w-full object-cover object-top transition-transform duration-700 group-hover:scale-110"
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                style={{ objectPosition: 'center top' }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.5, delay: index * 0.05 }}
@@ -305,7 +566,7 @@ function MovieCard({ movie, index }: { movie: Movie; index: number }) {
           </div>
           
           {/* Contenu texte */}
-          <div className="flex flex-1 flex-col p-5">
+          <div className="flex flex-1 flex-col p-5 bg-gradient-to-b from-transparent to-black/20">
             <motion.h2 
               className="mb-2 text-center text-lg font-bold text-white line-clamp-2"
               initial={{ y: 10, opacity: 0 }}
@@ -327,7 +588,7 @@ function MovieCard({ movie, index }: { movie: Movie; index: number }) {
                       type: "spring",
                       stiffness: 300
                     }}
-                    className="inline-block rounded-full bg-white/5 px-3 py-1 text-xs font-medium text-white/80 backdrop-blur-sm transition-all hover:bg-white/10 hover:text-white"
+                    className="inline-block rounded-full bg-white/5 px-3 py-1 text-xs font-medium text-white/80 backdrop-blur-sm transition-all hover:bg-white/20 hover:text-white border border-white/10 hover:border-white/30"
                   >
                     {g.trim()}
                   </motion.span>

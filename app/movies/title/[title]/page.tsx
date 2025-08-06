@@ -44,20 +44,17 @@ function extractQuality(name: string | undefined): string {
   if (!name) return 'Qualité inconnue';
   
   // Rechercher les qualités courantes dans le nom du torrent
-  const qualityPatterns = [
-    /\b(4K|UHD)\b/i,
-    /\b(2160P)\b/i,
-    /\b(1080P)\b/i,
-    /\b(720P)\b/i,
-    /\b(HDRip|BDRip|BRRip|DVDRip|WebRip)\b/i
-  ];
-  
-  for (const pattern of qualityPatterns) {
-    const match = name.match(pattern);
-    if (match) {
-      // Retourner la qualité trouvée en majuscules
-      return match[0].toUpperCase();
-    }
+  if (name.match(/\b(4K|UHD)\b/i)) {
+    return '4K';
+  } else if (name.match(/\b(2160P)\b/i)) {
+    return '4K';
+  } else if (name.match(/\b(1080P)\b/i)) {
+    return 'HD';
+  } else if (name.match(/\b(720P)\b/i)) {
+    return 'HD';
+  } else if (name.match(/\b(HDRip|BDRip|BRRip|DVDRip|WebRip)\b/i)) {
+    const match = name.match(/\b(HDRip|BDRip|BRRip|DVDRip|WebRip)\b/i);
+    return match ? match[0].toUpperCase() : 'Qualité standard';
   }
   
   return 'Qualité standard';
