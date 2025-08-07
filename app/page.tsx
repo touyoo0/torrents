@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import GifBackground from "./components/GifBackground";
+import PageBackground from "./components/PageBackground";
 
 export default function Home() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4">
-      <motion.div
+    <PageBackground>
+      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+        <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
@@ -121,7 +123,8 @@ export default function Home() {
             </div>
           </Link>
         </motion.div>
+        </div>
       </div>
-    </div>
+    </PageBackground>
   );
 }
