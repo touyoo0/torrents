@@ -25,7 +25,7 @@ interface Movie {
 
 async function getMoviesByTitle(title: string): Promise<Movie[] | null> {
   try {
-    const res = await fetch(`http://localhost:3000/api/movies/title/${encodeURIComponent(title)}`);
+    const res = await fetch(`/api/movies/title/${encodeURIComponent(title)}`);
     if (!res.ok) return null;
     return res.json();
   } catch (error) {
