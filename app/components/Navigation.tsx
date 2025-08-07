@@ -51,6 +51,9 @@ export default function Navigation() {
             <NavLink href="/series" active={isActive('/series')}>
               Séries
             </NavLink>
+            <NavLink href="/telechargements" active={isActive('/telechargements')}>
+              Téléchargements
+            </NavLink>
           </div>
         </div>
         
@@ -62,7 +65,7 @@ export default function Navigation() {
               <div className="flex items-center">
                 <div className="mr-3">
                   <span className="font-medium">200 Go</span> libres 
-                  <span className="text-gray-400 text-xs">(20%)</span>
+                  <span className="text-gray-400 text-xs"> (20%)</span>
                 </div>
                 <div className="w-24 h-2 bg-gray-700 rounded-full overflow-hidden">
                   <div className="h-full bg-green-500" style={{ width: '20%' }} />
@@ -75,7 +78,7 @@ export default function Navigation() {
             <div className="flex items-center">
               <div className="mr-3">
                 <span className="font-medium">{free < 1 ? free.toFixed(1) : Math.round(free)} Go</span> libres 
-                <span className="text-gray-400 text-xs">({Math.round(percent)}%)</span>
+                <span className="text-gray-400 text-xs"> ({Math.round(percent)}%)</span>
               </div>
               <div className="w-24 h-2 bg-gray-700 rounded-full overflow-hidden">
                 <div 
@@ -110,6 +113,9 @@ export default function Navigation() {
                 <MobileNavLink href="/series" active={isActive('/series')} onClick={() => setIsMenuOpen(false)}>
                   Séries
                 </MobileNavLink>
+                <MobileNavLink href="/telechargements" active={isActive('/telechargements')} onClick={() => setIsMenuOpen(false)}>
+                  Téléchargements
+                </MobileNavLink>
                 
                 {/* Disk Space Info - Mobile */}
                 <div className="text-sm text-gray-300 pt-2 border-t border-gray-800">
@@ -120,7 +126,7 @@ export default function Navigation() {
                       <div className="flex flex-col">
                         <div className="mb-2">
                           <span className="font-medium">200 Go</span> libres 
-                          <span className="text-gray-400 text-xs">(20%)</span>
+                          <span className="text-gray-400 text-xs"> (20%)</span>
                         </div>
                         <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
                           <div className="h-full bg-green-500" style={{ width: '20%' }} />
@@ -133,7 +139,7 @@ export default function Navigation() {
                     <div className="flex flex-col">
                       <div className="mb-2">
                         <span className="font-medium">{free < 1 ? free.toFixed(1) : Math.round(free)} Go</span> libres 
-                        <span className="text-gray-400 text-xs">({Math.round(percent)}%)</span>
+                        <span className="text-gray-400 text-xs"> ({Math.round(percent)}%)</span>
                       </div>
                       <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
                         <div 

@@ -48,7 +48,7 @@ export default function DiskSpaceInfo() {
   }, [open]); // Dépendance à l'état 'open'
 
   return (
-    <div ref={containerRef} style={{ position: "absolute", top: 12, left: 16, zIndex: 1000 }}>
+    <div ref={containerRef} style={{ position: "fixed", top: 12, left: 16, zIndex: 1000 }}>
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label="Afficher l'espace disque"
