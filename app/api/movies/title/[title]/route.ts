@@ -1,12 +1,12 @@
-import { NextResponse, NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { title: string } }
+  request: Request,
+  { params }: { params: Promise<{ title: string }> }
 ) {
   try {
-    const { title: rawTitle } = params;
+    const { title: rawTitle } = await params;
     const title = decodeURIComponent(rawTitle);
     
     // Récupérer tous les films avec ce titre
