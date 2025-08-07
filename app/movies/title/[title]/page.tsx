@@ -1,4 +1,6 @@
-import React from 'react';
+'use client';
+
+import React, { useState } from 'react';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -70,11 +72,95 @@ function formatDate(dateStr: string | undefined): string {
   });
 }
 
-export default async function MovieTitlePage({ params }: { params: { title: string } }) {
+export default function MovieTitlePage({ params }: { params: { title: string } }) {
+  const [isLoading, setIsLoading] = useState<Record<number, boolean>>({});
+  const [statusMessage, setStatusMessage] = useState<Record<number, string>>({});
   const title = decodeURIComponent(params.title);
-  const movies = await getMoviesByTitle(title);
+  const [movies, setMovies] = useState<Movie[]>([]);
+  const [loading, setLoading] = useState(true);
   
-  if (!movies || movies.length === 0) notFound();
+  // Fetch movies on component mount
+  React.useEffect(() => {
+    const fetchMovies = async () => {
+      const fetchedMovies = await getMoviesByTitle(title);
+      if (!fetchedMovies || fetchedMovies.length === 0) {
+        // Handle not found case in client component
+        window.location.href = '/404';
+        return;
+      }
+      setMovies(fetchedMovies);
+      setLoading(false);
+    };
+    
+    fetchMovies();
+  }, [title]);
+  
+  // Function to trigger Airflow DAG for downloading
+  const triggerAirflowDownload = async (torrentId: number, category: string) => {
+    try {
+      // Set loading state for this specific torrent
+      setIsLoading(prev => ({ ...prev, [torrentId]: true }));
+      setStatusMessage(prev => ({ ...prev, [torrentId]: 'Démarrage...' }));
+      
+      // Convert torrentId to string to ensure proper JSON serialization
+      const torrentIdStr = torrentId.toString();
+      
+      const response = await fetch('/api/airflow', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          dagId: 'torrents_download',
+          params: {
+            torrent_id: torrentIdStr,
+            category: category
+          }
+        })
+      });
+      
+      let data;
+      try {
+        data = await response.json();
+      } catch (error) {
+        console.error('Error parsing response:', error);
+        throw new Error('Réponse invalide du serveur');
+      }
+      
+      if (response.ok) {
+        setStatusMessage(prev => ({ ...prev, [torrentId]: 'Téléchargement démarré!' }));
+        // Reset status message after 3 seconds
+        setTimeout(() => {
+          setStatusMessage(prev => {
+            const newState = { ...prev };
+            delete newState[torrentId];
+            return newState;
+          });
+        }, 3000);
+      } else {
+        setStatusMessage(prev => ({ ...prev, [torrentId]: `Erreur: ${data.error || 'Échec du téléchargement'}` }));
+      }
+    } catch (error) {
+      console.error('Error triggering Airflow DAG:', error);
+      setStatusMessage(prev => ({ ...prev, [torrentId]: 'Erreur de connexion' }));
+    } finally {
+      setIsLoading(prev => {
+        const newState = { ...prev };
+        delete newState[torrentId];
+        return newState;
+      });
+    }
+  };
+  
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-slate-900 to-gray-950 text-white p-8 flex items-center justify-center">
+        <div className="text-xl">Chargement...</div>
+      </div>
+    );
+  }
+  
+  if (!movies || movies.length === 0) return null;
 
   // Utiliser le premier film pour les informations générales
   const mainMovie = movies[0];
@@ -163,13 +249,26 @@ export default async function MovieTitlePage({ params }: { params: { title: stri
                     </div>
                     
                     {/* Bouton de téléchargement */}
-                    <a 
-                      href={`magnet:?xt=urn:btih:${movie.info_hash}`}
-                      className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-lg inline-flex items-center justify-center w-7 h-7 p-1.5 flex-shrink-0"
-                      title="Télécharger"
-                    >
-                      <FiDownload className="w-4 h-4" />
-                    </a>
+                    <div className="flex gap-2">
+                      {/* Bouton magnet original */}
+                      <a 
+                        href={`magnet:?xt=urn:btih:${movie.info_hash}`}
+                        className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-lg inline-flex items-center justify-center w-7 h-7 p-1.5 flex-shrink-0"
+                        title="Télécharger via magnet"
+                      >
+                        <FiDownload className="w-4 h-4" />
+                      </a>
+                      
+                      {/* Bouton pour déclencher le DAG Airflow */}
+                      <button
+                        onClick={() => triggerAirflowDownload(movie.id, movie.categorie)}
+                        disabled={isLoading[movie.id]}
+                        className={`${isLoading[movie.id] ? 'bg-gray-500' : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700'} text-white rounded-lg inline-flex items-center justify-center px-3 py-1 text-xs font-medium flex-shrink-0`}
+                        title="Télécharger via Airflow"
+                      >
+                        {isLoading[movie.id] ? 'En cours...' : statusMessage[movie.id] || 'Airflow'}
+                      </button>
+                    </div>
                   </div>
                   
                   {/* Deuxième ligne: nom du torrent */}
