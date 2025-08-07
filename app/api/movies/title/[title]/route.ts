@@ -6,7 +6,8 @@ export async function GET(
   { params }: { params: { title: string } }
 ) {
   try {
-    const title = decodeURIComponent(params.title);
+    const { title: rawTitle } = await params;
+    const title = decodeURIComponent(rawTitle);
     
     // Récupérer tous les films avec ce titre
     const [rows] = await pool.query(

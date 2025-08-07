@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
       `SELECT id, title, name, year, poster_url, genres, statut, categorie, saison, episode
        FROM ygg_torrents_new
        ${whereClause}
-       ORDER BY id DESC
+       ORDER BY title ASC
        LIMIT 200`,
       params
     );

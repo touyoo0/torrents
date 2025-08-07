@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { FiArrowLeft, FiPlay, FiDownload } from 'react-icons/fi';
+import { useParams } from 'next/navigation';
 
 interface Movie {
   id: number;
@@ -72,12 +73,17 @@ function formatDate(dateStr: string | undefined): string {
   });
 }
 
-export default function MovieTitlePage({ params }: { params: { title: string } }) {
+export default function MovieTitlePage() {
   const [isLoading, setIsLoading] = useState<Record<number, boolean>>({});
   const [statusMessage, setStatusMessage] = useState<Record<number, string>>({});
-  const title = decodeURIComponent(params.title);
+  // Statut de téléchargement par torrent id: '✔️ Téléchargé' | '⌛ Téléchargement'
+  const [downloadStatus, setDownloadStatus] = useState<Record<number, string>>({});
+  const { title: rawTitle } = useParams();
+  const title = decodeURIComponent(rawTitle as string);
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
+  // Indique si les statuts sont en cours de récupération (pour l'affichage des boutons)
+  const [statusesLoading, setStatusesLoading] = useState<boolean>(true);
   
   // Fetch movies on component mount
   React.useEffect(() => {
@@ -95,11 +101,43 @@ export default function MovieTitlePage({ params }: { params: { title: string } }
     fetchMovies();
   }, [title]);
   
+  // Après le chargement des films, récupérer les statuts de téléchargement
+  React.useEffect(() => {
+    const fetchStatuses = async () => {
+      if (!movies || movies.length === 0) return;
+      try {
+        setStatusesLoading(true);
+        const main = movies[0];
+        // Mapper la catégorie vers le paramètre attendu par l'API
+        const catParam = main.categorie === 'Série' ? 'serie' : 'films';
+        const res = await fetch(`/api/telechargements?categorie=${encodeURIComponent(catParam)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const map: Record<number, string> = {};
+        if (Array.isArray(data?.torrents)) {
+          for (const t of data.torrents) {
+            if (typeof t?.id === 'number' && typeof t?.statut === 'string') {
+              map[t.id] = t.statut; // '✔️ Téléchargé' ou '⌛ Téléchargement'
+            }
+          }
+        }
+        setDownloadStatus(map);
+      } catch (e) {
+        console.error('Erreur récupération statuts:', e);
+      } finally {
+        setStatusesLoading(false);
+      }
+    };
+    fetchStatuses();
+  }, [movies]);
+  
   // Function to trigger Airflow DAG for downloading
   const triggerAirflowDownload = async (torrentId: number, category: string) => {
     try {
       // Set loading state for this specific torrent
       setIsLoading(prev => ({ ...prev, [torrentId]: true }));
+      // Mettre immédiatement le statut à "Téléchargement"
+      setDownloadStatus(prev => ({ ...prev, [torrentId]: '⌛ Téléchargement' }));
       setStatusMessage(prev => ({ ...prev, [torrentId]: 'Démarrage...' }));
       
       // Convert torrentId to string to ensure proper JSON serialization
@@ -114,7 +152,8 @@ export default function MovieTitlePage({ params }: { params: { title: string } }
           dagId: 'torrents_download',
           params: {
             torrent_id: torrentIdStr,
-            category: category
+            category: category,
+            title: title
           }
         })
       });
@@ -129,20 +168,26 @@ export default function MovieTitlePage({ params }: { params: { title: string } }
       
       if (response.ok) {
         setStatusMessage(prev => ({ ...prev, [torrentId]: 'Téléchargement démarré!' }));
-        // Reset status message after 3 seconds
-        setTimeout(() => {
-          setStatusMessage(prev => {
-            const newState = { ...prev };
-            delete newState[torrentId];
-            return newState;
-          });
-        }, 3000);
+        // Optionnel: on peut relancer une récupération des statuts pour refléter l'état serveur
+        // (laisser tel quel pour le moment)
       } else {
         setStatusMessage(prev => ({ ...prev, [torrentId]: `Erreur: ${data.error || 'Échec du téléchargement'}` }));
+        // En cas d'erreur, permettre un nouveau clic
+        setDownloadStatus(prev => {
+          const ns = { ...prev };
+          delete ns[torrentId];
+          return ns;
+        });
       }
     } catch (error) {
       console.error('Error triggering Airflow DAG:', error);
       setStatusMessage(prev => ({ ...prev, [torrentId]: 'Erreur de connexion' }));
+      // En cas d'erreur réseau, permettre un nouveau clic
+      setDownloadStatus(prev => {
+        const ns = { ...prev };
+        delete ns[torrentId];
+        return ns;
+      });
     } finally {
       setIsLoading(prev => {
         const newState = { ...prev };
@@ -232,7 +277,7 @@ export default function MovieTitlePage({ params }: { params: { title: string } }
           <div className="mt-8">
             <h2 className="text-xl font-semibold mb-4">Versions disponibles</h2>
             <div className="space-y-4"> 
-              {movies.map((movie) => (
+              {[...movies].sort((a, b) => (a.title ?? "").localeCompare(b.title ?? "")).map((movie) => (
                 <div 
                   key={movie.id}
                   className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 hover:bg-slate-800 transition-colors"
@@ -250,24 +295,45 @@ export default function MovieTitlePage({ params }: { params: { title: string } }
                     
                     {/* Bouton de téléchargement */}
                     <div className="flex gap-2">
-                      {/* Bouton magnet original */}
-                      <a 
-                        href={`magnet:?xt=urn:btih:${movie.info_hash}`}
-                        className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-lg inline-flex items-center justify-center w-7 h-7 p-1.5 flex-shrink-0"
-                        title="Télécharger via magnet"
-                      >
-                        <FiDownload className="w-4 h-4" />
-                      </a>
-                      
+
                       {/* Bouton pour déclencher le DAG Airflow */}
-                      <button
-                        onClick={() => triggerAirflowDownload(movie.id, movie.categorie)}
-                        disabled={isLoading[movie.id]}
-                        className={`${isLoading[movie.id] ? 'bg-gray-500' : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700'} text-white rounded-lg inline-flex items-center justify-center px-3 py-1 text-xs font-medium flex-shrink-0`}
-                        title="Télécharger via Airflow"
-                      >
-                        {isLoading[movie.id] ? 'En cours...' : statusMessage[movie.id] || 'Airflow'}
-                      </button>
+                      {(() => {
+                        const st = downloadStatus[movie.id];
+                        const isDownloaded = !statusesLoading && st === '✔️ Téléchargé';
+                        const isDownloading = statusesLoading || st === '⌛ Téléchargement' || isLoading[movie.id];
+                        const label = isDownloaded
+                          ? 'Téléchargé'
+                          : st === '⌛ Téléchargement' || isLoading[movie.id]
+                          ? 'Téléchargement...'
+                          : 'Télécharger';
+                        const className = statusesLoading
+                          ? 'bg-gray-500 cursor-not-allowed'
+                          : isDownloaded
+                          ? 'bg-green-600 cursor-not-allowed'
+                          : isDownloading
+                          ? 'bg-orange-500 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700';
+                        const disabled = statusesLoading || isDownloaded || isDownloading;
+                        const showSpinner = statusesLoading;
+                        return (
+                          <button
+                            onClick={() => !disabled && triggerAirflowDownload(movie.id, movie.categorie)}
+                            disabled={disabled}
+                            className={`${className} text-white rounded-lg inline-flex items-center justify-center px-3 py-1 text-xs font-medium flex-shrink-0`}
+                            title={isDownloaded ? 'Déjà téléchargé' : 'Télécharger via Airflow'}
+                          >
+                            {showSpinner ? (
+                              <span
+                                className="inline-block h-4 w-4 border-2 border-white/60 border-t-transparent rounded-full animate-spin"
+                                aria-label="Chargement"
+                                role="status"
+                              />
+                            ) : (
+                              label
+                            )}
+                          </button>
+                        );
+                      })()}
                     </div>
                   </div>
                   

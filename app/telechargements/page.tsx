@@ -48,29 +48,31 @@ export default function TelechargesPage() {
   }, [categorie]);
 
   return (
-    <main className="container mx-auto py-10 px-4 min-h-screen">
-      <h1 className="text-3xl font-bold text-white mb-8">Téléchargements</h1>
-      <div className="mb-6 flex items-center gap-4">
-        <span className="text-gray-300">Filtrer :</span>
-        <div className="flex gap-2">
-          <button
-            className={`px-4 py-2 rounded font-semibold transition-colors ${categorie === "all" ? "bg-blue-600 text-white" : "bg-slate-700 text-gray-200 hover:bg-blue-900"}`}
-            onClick={() => setCategorie("all")}
-          >
-            Tous
-          </button>
-          <button
-            className={`px-4 py-2 rounded font-semibold transition-colors ${categorie === "films" ? "bg-blue-600 text-white" : "bg-slate-700 text-gray-200 hover:bg-blue-900"}`}
-            onClick={() => setCategorie("films")}
-          >
-            Films
-          </button>
-          <button
-            className={`px-4 py-2 rounded font-semibold transition-colors ${categorie === "serie" ? "bg-blue-600 text-white" : "bg-slate-700 text-gray-200 hover:bg-blue-900"}`}
-            onClick={() => setCategorie("serie")}
-          >
-            Séries
-          </button>
+    <main className="min-h-screen bg-gradient-to-br from-gray-950 via-slate-900 to-gray-950 text-white p-8">
+      <div className="container mx-auto py-10 px-4">
+        <h1 className="text-3xl font-bold text-white mb-8">Téléchargements</h1>
+        <div className="mb-6 flex items-center gap-4">
+          <span className="text-gray-300">Filtrer :</span>
+          <div className="flex gap-2">
+            <button
+              className={`px-4 py-2 rounded font-semibold transition-colors ${categorie === "all" ? "bg-blue-600 text-white" : "bg-slate-700 text-gray-200 hover:bg-blue-900"}`}
+              onClick={() => setCategorie("all")}
+            >
+              Tous
+            </button>
+            <button
+              className={`px-4 py-2 rounded font-semibold transition-colors ${categorie === "films" ? "bg-blue-600 text-white" : "bg-slate-700 text-gray-200 hover:bg-blue-900"}`}
+              onClick={() => setCategorie("films")}
+            >
+              Films
+            </button>
+            <button
+              className={`px-4 py-2 rounded font-semibold transition-colors ${categorie === "serie" ? "bg-blue-600 text-white" : "bg-slate-700 text-gray-200 hover:bg-blue-900"}`}
+              onClick={() => setCategorie("serie")}
+            >
+              Séries
+            </button>
+          </div>
         </div>
       </div>
       {loading ? (
