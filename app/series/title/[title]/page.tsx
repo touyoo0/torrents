@@ -292,7 +292,7 @@ export default function SerieTitlePage() {
 
           {/* Liste des versions disponibles, groupées par saison */}
           <div className="mt-8">
-            <h2 className="text-xl font-semibold mb-4">Versions disponibles</h2>
+            <h2 className="text-xl font-semibold mb-4">Saisons disponibles</h2>
             <div className="space-y-8">
               {Object.entries(groupedBySeason)
                 .sort((a, b) => {
@@ -320,7 +320,7 @@ export default function SerieTitlePage() {
                         {seasonLabel}
                       </span>
                       <span className="text-xs text-white/60">
-                        {items.length} version{items.length > 1 ? 's' : ''}
+                        {items.length} torrent{items.length > 1 ? 's' : ''}
                       </span>
                     </button>
 

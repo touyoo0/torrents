@@ -18,6 +18,49 @@ interface TorrentRow extends RowDataPacket {
   repertoire?: string | null;
 }
 
+type UsersConfig = {
+  users: Record<string, { team: string; ip_addresses: string[] }>;
+};
+
+function normalizeIp(ip: string | null | undefined): string | null {
+  if (!ip) return null;
+  const trimmed = ip.trim();
+  // Handle IPv6-mapped IPv4 addresses like ::ffff:192.168.1.24
+  if (trimmed.startsWith('::ffff:')) return trimmed.replace('::ffff:', '');
+  return trimmed;
+}
+
+function getClientIp(req: NextRequest): string | null {
+  // Try to read common headers first
+  const xff = req.headers.get('x-forwarded-for') || '';
+  const xri = req.headers.get('x-real-ip') || '';
+  const fromXff = xff.split(',')[0]?.trim();
+  const ip = fromXff || xri || (req as any).ip || '';
+  return normalizeIp(ip);
+}
+
+async function resolveUserFromIp(ip: string | null): Promise<{ username: string; team: string } | null> {
+  if (!ip) return null;
+  try {
+    const usersPath = path.join(process.cwd(), 'src', 'config', 'users.json');
+    const raw = await fs.readFile(usersPath, 'utf8');
+    const cfg = JSON.parse(raw) as UsersConfig;
+    const norm = normalizeIp(ip);
+    for (const [username, meta] of Object.entries(cfg.users || {})) {
+      const list = Array.isArray(meta.ip_addresses) ? meta.ip_addresses : [];
+      // Normalize each stored IP for robust comparison
+      const match = list.some(v => normalizeIp(v) === norm);
+      if (match) {
+        return { username, team: meta.team };
+      }
+    }
+    return null;
+  } catch (e) {
+    console.error('users.json read/parse error:', e);
+    return null;
+  }
+}
+
 export async function DELETE(req: NextRequest) {
   try {
     const body = await req.json();
@@ -81,6 +124,18 @@ export async function DELETE(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
+    // Identify the visitor
+    const clientIp = getClientIp(req);
+    const user = await resolveUserFromIp(clientIp);
+
+    // If IP not mapped, return empty list (security by default)
+    if (!user) {
+      return new Response(JSON.stringify({ torrents: [] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     // Statuts à inclure
     const statuts = ["✔️ Téléchargé", "⌛ Téléchargement"];
     const { searchParams } = new URL(req.url);
@@ -92,6 +147,12 @@ export async function GET(req: NextRequest) {
       whereClause += " AND categorie = 'Série'";
     } else if (categorie === 'films') {
       whereClause += " AND categorie != 'Série'";
+    }
+
+    // Team-based filtering: Default -> filter by username, Admin -> no additional filter
+    if (user.team !== 'Admin') {
+      whereClause += ' AND username = ?';
+      params.push(user.username);
     }
 
     const [rows] = await pool.query<TorrentRow[]>(
