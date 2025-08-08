@@ -127,7 +127,7 @@ def D_update_database(**kwargs):
     try:
         with conn.cursor() as cursor:
             cursor.execute(
-                "UPDATE ygg_torrents_new SET statut = '➕ Ajouter', repertoire = NULL WHERE id = %s",
+                "UPDATE ygg_torrents_new SET statut = '➕ Ajouter', repertoire = NULL, username = NULL WHERE id = %s",
                 (torrent_id,)
             )
             conn.commit()
