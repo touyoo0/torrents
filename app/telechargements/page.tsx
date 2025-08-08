@@ -15,6 +15,8 @@ interface Torrent {
   categorie: string;
   saison?: number | null;
   episode?: number | null;
+  // Optionnel, renvoyé par l'API quand en cours de téléchargement (0..100)
+  progress?: number;
 }
 
 export default function TelechargesPage() {
@@ -112,13 +114,13 @@ function TelechargesPageInner() {
       })
     : torrents;
 
-  // Polling: if redirected with a query, keep refetching until the targeted torrent is not downloading anymore
+  // Polling: refresh automatically while any item is downloading (or when redirected with a query and no results yet)
   useEffect(() => {
     const hasQuery = !!query.trim();
     const noResults = filteredTorrents.length === 0;
     const someDownloading = filteredTorrents.some(t => t.statut === '⌛ Téléchargement');
-    // Start polling if: we have a query, not loading, no error, and (no results yet OR still downloading)
-    const shouldPoll = hasQuery && !loading && !error && (noResults || someDownloading);
+    // Start polling if: not loading, no error, and (some downloading OR (redirected with a query and no results yet))
+    const shouldPoll = !loading && !error && (someDownloading || (hasQuery && noResults));
     if (shouldPoll) {
       setPolling(true);
       // Clear any existing timer
@@ -140,7 +142,7 @@ function TelechargesPageInner() {
         } catch (_) {
           // ignore individual poll errors
         }
-      }, 2000) as any;
+      }, 500) as any;
     } else {
       // Stop polling when results appear or conditions change
       if (pollTimer.current) {
@@ -226,7 +228,9 @@ function TelechargesPageInner() {
                   title="Téléchargement en cours"
                   disabled
                 >
-                  Téléchargement...
+                  {typeof torrent.progress === 'number'
+                    ? `Téléchargement ${Math.max(0, Math.min(100, torrent.progress))}%`
+                    : 'Téléchargement...'}
                 </button>
               ) : deleting[torrent.id] ? (
                 <button
