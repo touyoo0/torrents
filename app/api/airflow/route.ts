@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import fs from 'fs/promises';
+import path from 'path';
 
 /**
  * API endpoint to trigger an Airflow DAG
@@ -12,6 +14,40 @@ export async function POST(req: NextRequest) {
     // Extract DAG ID and parameters from request
     const { dagId, params } = await req.json();
     
+    // Resolve client IP -> username from src/config/users.json
+    type UsersConfig = { users: Record<string, { team: string; ip_addresses: string[] }> };
+    const normalizeIp = (ip: string | null | undefined) => {
+      if (!ip) return null;
+      const t = ip.trim();
+      if (t === '::1') return '127.0.0.1';
+      return t.startsWith('::ffff:') ? t.replace('::ffff:', '') : t;
+    };
+    const getClientIp = (request: NextRequest): string | null => {
+      const xff = request.headers.get('x-forwarded-for') || '';
+      const xri = request.headers.get('x-real-ip') || '';
+      const fromXff = xff.split(',')[0]?.trim();
+      return normalizeIp(fromXff || xri || (request as any).ip || '');
+    };
+    const resolveUserFromIp = async (ip: string | null): Promise<string | null> => {
+      if (!ip) return null;
+      try {
+        const usersPath = path.join(process.cwd(), 'src', 'config', 'users.json');
+        const raw = await fs.readFile(usersPath, 'utf8');
+        const cfg = JSON.parse(raw) as UsersConfig;
+        const norm = normalizeIp(ip);
+        for (const [username, meta] of Object.entries(cfg.users || {})) {
+          const list = Array.isArray(meta.ip_addresses) ? meta.ip_addresses : [];
+          if (list.some(v => normalizeIp(v) === norm)) return username;
+        }
+        return null;
+      } catch (e) {
+        console.error('users.json read/parse error:', e);
+        return null;
+      }
+    };
+    const clientIp = getClientIp(req);
+    const resolvedUser = await resolveUserFromIp(clientIp);
+    
     if (!dagId) {
       return NextResponse.json({ error: 'DAG ID is required' }, { status: 400 });
     }
@@ -23,10 +59,10 @@ export async function POST(req: NextRequest) {
     const username = 'touyoo';
     const password = 'touyoo';
     
-    // Create request body
+    // Create request body (inject user if resolved)
     const requestBody = {
       dag_run_id: `manual_${Date.now()}`,
-      conf: params
+      conf: { ...(params || {}), ...(resolvedUser ? { user: resolvedUser } : {}) }
     };
     
     // API endpoint URL

@@ -61,7 +61,8 @@ def A_retrieve_variables(**kwargs):
             torrent_id = dag_run.conf.get('torrent_id')
             category = dag_run.conf.get('category')
             title = dag_run.conf.get('title')
-            logger.info(f"Paramètres extraits: torrent_id={torrent_id}, category={category}, title={title}")
+            user = dag_run.conf.get('user')
+            logger.info(f"Paramètres extraits: torrent_id={torrent_id}, category={category}, title={title}, user={user}")
         except Exception as e:
             logger.error(f"Erreur lors de l'extraction des paramètres: {str(e)}")
             raise AirflowSkipException(f"Erreur paramètres: {str(e)}")
@@ -76,8 +77,9 @@ def A_retrieve_variables(**kwargs):
         ti.xcom_push(key='torrent_id', value=torrent_id)
         ti.xcom_push(key='category', value=category)
         ti.xcom_push(key='title', value=title)
+        ti.xcom_push(key='user', value=user)
 
-        return ygg, qb, db, torrent_id, category
+        return ygg, qb, db, torrent_id, category, user
     except Exception as e:
         logger.error(f"Erreur lors de la récupération des variables: {str(e)}")
         raise
@@ -145,7 +147,7 @@ def C_update_database(**kwargs):
     ti = kwargs['ti']
     db = ti.xcom_pull(key='db')
     torrent_id = ti.xcom_pull(key='torrent_id')
-
+    user = ti.xcom_pull(key='user')
     skip_next_tasks = ti.xcom_pull(key='skip_next_tasks')
     if skip_next_tasks:
         logger.info("Étape ignorée: aucun torrent téléchargé")
@@ -159,7 +161,7 @@ def C_update_database(**kwargs):
             db=json.loads(db)["DB_NAME"]
         )
         cursor = conn.cursor()
-        cursor.execute("UPDATE ygg_torrents_new SET statut = '⌛ Téléchargement' WHERE id = %s", (torrent_id,))
+        cursor.execute("UPDATE ygg_torrents_new SET statut = '⌛ Téléchargement', username = %s WHERE id = %s", (user, torrent_id))
         conn.commit()
         cursor.close()
         conn.close()
