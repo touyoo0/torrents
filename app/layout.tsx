@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import localFont from 'next/font/local';
 import Navigation from "./components/Navigation";
+import PageBackground from "./components/PageBackground";
 import "./globals.css";
 
 const gilroy = localFont({
@@ -43,13 +44,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${gilroy.variable} antialiased bg-black text-white`}
-      >
-        <Navigation />
-        <div className="pt-14">
-          {children}
-        </div>
+      <body className={`${gilroy.variable} ${geistSans.variable} ${geistMono.variable} antialiased bg-black text-white min-h-screen`}>
+        <PageBackground>
+          <Navigation />
+          <main className="pt-14">
+            {children}
+          </main>
+        </PageBackground>
       </body>
     </html>
   );

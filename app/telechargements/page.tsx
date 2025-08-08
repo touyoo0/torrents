@@ -207,34 +207,53 @@ function TelechargesPageInner() {
       ) : torrents.length === 0 ? (
         <div className="text-gray-400">Aucun torrent téléchargé trouvé.</div>
       ) : (
-        <ul className="rounded-xl text-white text-base overflow-x-hidden flex flex-col gap-y-2 space-y-2">
+        <motion.ul
+          layout
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+          className="rounded-xl text-white text-base overflow-x-hidden flex flex-col gap-y-2"
+        >
           {filteredTorrents.map((torrent, idx) => (
-            <li key={torrent.id} className={`mb-2 px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between group break-words rounded-lg transition-shadow border border-slate-700 ${idx % 2 === 0 ? 'bg-slate-800' : 'bg-slate-700/60'} hover:shadow-lg hover:bg-slate-600/60`}
+            <motion.li
+              layout
+              key={torrent.id}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.18 }}
+              className={`mb-2 p-4 flex flex-col md:flex-row md:items-center md:justify-between group break-words rounded-xl border border-slate-700/60 ${idx % 2 === 0 ? 'bg-slate-800/70' : 'bg-slate-800/50'} hover:shadow-[0_6px_30px_-10px_rgba(0,0,0,0.6)] hover:bg-slate-700/60 backdrop-blur-sm`}
             >
               <div className="min-w-0 flex-1 break-words">
-                <span className="font-semibold break-words">{torrent.title}</span>
+                <span className="font-semibold break-words text-white/90">{torrent.title}</span>
                 {torrent.categorie === "Série" && torrent.saison ? (
-                  <span className="ml-2 text-xs text-purple-300 font-mono">
+                  <span className="ml-2 text-xs text-purple-300/90 font-mono">
                     S{String(torrent.saison).padStart(2, '0')}
                     {typeof torrent.episode === 'number' && torrent.episode !== null ? `E${String(torrent.episode).padStart(2, '0')}` : ''}
                   </span>
                 ) : null}
-                <span className="text-gray-400 mx-2">-</span>
-                <span className="italic text-blue-300 break-all">{torrent.name}</span>
+                <span className="text-gray-400/70 mx-2">-</span>
+                <span className="italic text-blue-300/90 break-all">{torrent.name}</span>
               </div>
               {(torrent.statut === "⌛ Téléchargement" && (typeof torrent.progress !== 'number' || torrent.progress < 100)) ? (
-                <button
-                  className="mt-2 md:mt-0 md:ml-4 px-2 py-1 rounded bg-orange-500 text-white text-xs opacity-90 cursor-not-allowed shrink-0"
-                  title="Téléchargement en cours"
-                  disabled
-                >
-                  {typeof torrent.progress === 'number'
-                    ? `Téléchargement ${Math.max(0, Math.min(100, torrent.progress))}%`
-                    : 'Téléchargement...'}
-                </button>
+                <div className="mt-3 md:mt-0 md:ml-4 w-full md:w-64">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-orange-300">Téléchargement</span>
+                    <span className="text-xs text-orange-200">
+                      {typeof torrent.progress === 'number' ? `${Math.max(0, Math.min(100, torrent.progress))}%` : '...'}
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-700/70 overflow-hidden">
+                    <motion.div
+                      initial={false}
+                      animate={{ width: `${Math.max(0, Math.min(100, (typeof torrent.progress === 'number' ? torrent.progress : 0)))}%` }}
+                      transition={{ type: 'spring', stiffness: 120, damping: 20 }}
+                      className="h-full bg-gradient-to-r from-amber-400 via-orange-500 to-red-500"
+                    />
+                  </div>
+                </div>
               ) : deleting[torrent.id] ? (
                 <button
-                  className="mt-2 md:mt-0 md:ml-4 px-2 py-1 rounded bg-slate-600 text-white text-xs opacity-80 cursor-not-allowed shrink-0"
+                  className="mt-2 md:mt-0 md:ml-4 px-3 py-1.5 rounded-lg bg-slate-600 text-white text-xs opacity-80 cursor-not-allowed shrink-0"
                   title="Suppression en cours"
                   disabled
                 >
@@ -242,16 +261,16 @@ function TelechargesPageInner() {
                 </button>
               ) : (
                 <button
-                  className="mt-2 md:mt-0 md:ml-4 px-2 py-1 rounded hover:bg-red-600/80 bg-red-700 text-white text-xs opacity-80 group-hover:opacity-100 transition shrink-0"
+                  className="mt-2 md:mt-0 md:ml-4 px-3 py-1.5 rounded-lg bg-gradient-to-r from-red-600 to-rose-600 text-white text-xs opacity-90 group-hover:opacity-100 transition shadow hover:shadow-red-900/30 shrink-0"
                   title="Supprimer ce torrent"
                   onClick={() => handleDelete(torrent.id)}
                 >
                   Supprimer
                 </button>
               )}
-            </li>
+            </motion.li>
           ))}
-        </ul>
+        </motion.ul>
       )}
     </main>
   );

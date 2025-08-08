@@ -266,120 +266,117 @@ export default function SeriesPage() {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="text-center mb-16"
+          className="text-center mb-6 sm:mb-8"
         >
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 font-display">
             Séries
           </h1>
-          <br />
-          
-          {/* Barre de recherche */}
-          <div className="w-full max-w-2xl mx-auto mb-8">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Rechercher une série..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                className="w-full px-6 py-3 pr-12 rounded-full bg-slate-800 border border-slate-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-              />
-              <svg 
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" 
-                fill="none" 
-                viewBox="0 0 24 24" 
-                stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-            
-            {/* Filtres */}
-            <div className="flex flex-wrap justify-center gap-4 mt-4">
-              {/* Filtre par genre */}
+          {/* Barre sticky: recherche + filtres */}
+          <div className="w-full max-w-5xl mx-auto mb-6 sticky top-16 z-30">
+            <div className="rounded-2xl border border-white/10 bg-slate-900/70 backdrop-blur-md shadow-xl p-4">
+              {/* Barre de recherche */}
               <div className="relative">
-                <select
-                  value={selectedGenre}
-                  onChange={(e) => setSelectedGenre(e.target.value)}
-                  className="appearance-none bg-slate-800 border border-slate-700 text-white text-sm rounded-full px-4 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                <input
+                  type="text"
+                  placeholder="Rechercher une série..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  className="w-full px-6 py-3 pr-12 rounded-xl bg-slate-800/80 border border-slate-700/60 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                />
+                <svg 
+                  className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
                 >
-                  <option value="all">Tous les genres</option>
-                  {allGenres.map((genre) => (
-                    <option key={genre} value={genre}>
-                      {genre}
-                    </option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-                  <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                  </svg>
-                </div>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
               </div>
-              
-              {/* Filtre par année */}
-              <div className="relative">
-                <select
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(e.target.value)}
-                  className="appearance-none bg-slate-800 border border-slate-700 text-white text-sm rounded-full px-4 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  <option value="all">Toutes les années</option>
-                  {yearRanges.map((range) => (
-                    <option key={range.value} value={range.value}>
-                      {range.label}
-                    </option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-                  <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                  </svg>
-                </div>
-              </div>
-              
-              {/* Tri */}
-              <div className="relative">
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="appearance-none bg-slate-800 border border-slate-700 text-white text-sm rounded-full px-4 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  <option value="latest">Plus récents</option>
-                  <option value="oldest">Plus anciens</option>
-                  <option value="title_asc">Titre (A-Z)</option>
-                  <option value="title_desc">Titre (Z-A)</option>
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-                  <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                  </svg>
-                </div>
-              </div>
-              
-              {/* Bouton Rechercher */}
-              <button
-                onClick={handleSearch}
-                disabled={loading}
-                className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-sm font-medium rounded-full hover:opacity-90 transition-opacity flex items-center gap-2 shadow-lg shadow-blue-500/20 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
-              >
-                {loading ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              {/* Filtres */}
+              <div className="flex flex-col items-center justify-center gap-3 mt-3 sm:flex-row sm:flex-wrap">
+                {/* Filtre par genre */}
+                <div className="relative w-full max-w-[320px] sm:w-auto sm:max-w-none">
+                  <select
+                    value={selectedGenre}
+                    onChange={(e) => setSelectedGenre(e.target.value)}
+                    className="w-full appearance-none bg-slate-800/80 border border-slate-700/60 text-white text-sm md:text-lg rounded-xl px-3 py-2 pr-8 sm:px-4 sm:py-2 md:px-6 md:py-3.5 md:pr-10 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <option value="all">Tous les genres</option>
+                    {allGenres.map((genre) => (
+                      <option key={genre} value={genre}>
+                        {genre}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                    <svg className="fill-current h-4 w-4 md:h-5 md:w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
                     </svg>
-                    Recherche...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </div>
+                </div>
+                {/* Filtre par année */}
+                <div className="relative w-full max-w-[320px] sm:w-auto sm:max-w-none">
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(e.target.value)}
+                    className="w-full appearance-none bg-slate-800/80 border border-slate-700/60 text-white text-sm md:text-lg rounded-xl px-3 py-2 pr-8 sm:px-4 sm:py-2 md:px-6 md:py-3.5 md:pr-10 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <option value="all">Toutes les années</option>
+                    {yearRanges.map((range) => (
+                      <option key={range.value} value={range.value}>
+                        {range.label}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                    <svg className="fill-current h-4 w-4 md:h-5 md:w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
                     </svg>
-                    Rechercher
-                  </>
-                )}
-              </button>
+                  </div>
+                </div>
+                {/* Tri */}
+                <div className="relative w-full max-w-[320px] sm:w-auto sm:max-w-none">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="w-full appearance-none bg-slate-800/80 border border-slate-700/60 text-white text-sm md:text-lg rounded-xl px-3 py-2 pr-8 sm:px-4 sm:py-2 md:px-6 md:py-3.5 md:pr-10 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <option value="latest">Plus récents</option>
+                    <option value="oldest">Plus anciens</option>
+                    <option value="title_asc">Titre (A-Z)</option>
+                    <option value="title_desc">Titre (Z-A)</option>
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                    </svg>
+                  </div>
+                </div>
+                {/* Bouton Rechercher */}
+                <button
+                  onClick={handleSearch}
+                  disabled={loading}
+                  className="w-full max-w-[320px] sm:w-auto sm:max-w-none px-4 py-2 md:px-6 md:py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-sm md:text-base font-medium rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {loading ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Recherche...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      Rechercher
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </motion.div>
@@ -407,23 +404,44 @@ export default function SeriesPage() {
           </motion.div>
         )}
 
-        <motion.div 
-          variants={container}
-          initial="hidden"
-          animate={!loading ? "show" : "hidden"}
-          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8 mt-4"
-        >
-          {!loading && series.length === 0 ? (
-            <div className="col-span-full text-center py-12 text-gray-400">
-              Aucune série trouvée avec ces critères de recherche.
-            </div>
-          ) : (
-            series.map((serie, index) => (
-            <motion.div key={serie.id} variants={item} className="h-full">
-              <SerieCard serie={serie} index={index} />
-            </motion.div>
-          )))}
-        </motion.div>
+        {loading ? (
+          // Skeletons pendant chargement
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8 mt-6">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div key={i} className="h-full">
+                <div className="relative h-full overflow-hidden rounded-2xl bg-slate-800/70 border border-white/10">
+                  <div className="aspect-[2/3] w-full bg-slate-700/60 animate-pulse" />
+                  <div className="p-5 space-y-3">
+                    <div className="h-5 w-3/4 bg-slate-700/60 rounded animate-pulse" />
+                    <div className="flex gap-2">
+                      <div className="h-4 w-16 bg-slate-700/60 rounded-full animate-pulse" />
+                      <div className="h-4 w-20 bg-slate-700/60 rounded-full animate-pulse" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <motion.div 
+            variants={container}
+            initial="hidden"
+            animate="show"
+            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8 mt-6"
+          >
+            {series.length === 0 ? (
+              <div className="col-span-full text-center py-12 text-gray-400">
+                Aucune série trouvée avec ces critères de recherche.
+              </div>
+            ) : (
+              series.map((serie, index) => (
+                <motion.div key={serie.id} variants={item} className="h-full">
+                  <SerieCard serie={serie} index={index} />
+                </motion.div>
+              ))
+            )}
+          </motion.div>
+        )}
         
         {/* Pagination */}
         {totalPages > 1 && (
