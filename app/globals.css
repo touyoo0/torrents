@@ -44,4 +44,10 @@ html, body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-gilroy), Arial, Helvetica, sans-serif;
+  /* Prevent horizontal scrolling */
+  overflow-x: hidden;
+  /* Allow vertical panning only on touch devices */
+  touch-action: pan-y;
+  /* Stop sideways overscroll/bounce */
+  overscroll-behavior-x: none;
 }
