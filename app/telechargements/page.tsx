@@ -31,6 +31,35 @@ export default function TelechargesPage() {
   const [query, setQuery] = useState<string>("");
   const [polling, setPolling] = useState<boolean>(false);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollAttempts = useRef<number>(0);
+  const [deleting, setDeleting] = useState<Record<number, boolean>>({});
+
+  async function handleDelete(id: number) {
+    try {
+      setDeleting(prev => ({ ...prev, [id]: true }));
+      const res = await fetch('/api/telechargements', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || 'Suppression échouée');
+      }
+      // Retirer du listing local immédiatement
+      setTorrents(prev => prev.filter(t => t.id !== id));
+    } catch (e) {
+      console.error(e);
+      // Optionnel: afficher un toast/alerte
+      alert('Erreur lors de la suppression');
+    } finally {
+      setDeleting(prev => {
+        const n = { ...prev };
+        delete n[id];
+        return n;
+      });
+    }
+  }
 
   useEffect(() => {
     async function fetchTorrents() {
@@ -190,11 +219,19 @@ export default function TelechargesPage() {
                 >
                   Téléchargement...
                 </button>
+              ) : deleting[torrent.id] ? (
+                <button
+                  className="mt-2 md:mt-0 md:ml-4 px-2 py-1 rounded bg-slate-600 text-white text-xs opacity-80 cursor-not-allowed shrink-0"
+                  title="Suppression en cours"
+                  disabled
+                >
+                  Suppression...
+                </button>
               ) : (
                 <button
                   className="mt-2 md:mt-0 md:ml-4 px-2 py-1 rounded hover:bg-red-600/80 bg-red-700 text-white text-xs opacity-80 group-hover:opacity-100 transition shrink-0"
                   title="Supprimer ce torrent"
-                  onClick={() => alert('WIP')}
+                  onClick={() => handleDelete(torrent.id)}
                 >
                   Supprimer
                 </button>
