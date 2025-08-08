@@ -222,7 +222,7 @@ function TelechargesPageInner() {
                 <span className="text-gray-400 mx-2">-</span>
                 <span className="italic text-blue-300 break-all">{torrent.name}</span>
               </div>
-              {torrent.statut === "⌛ Téléchargement" ? (
+              {(torrent.statut === "⌛ Téléchargement" && (typeof torrent.progress !== 'number' || torrent.progress < 100)) ? (
                 <button
                   className="mt-2 md:mt-0 md:ml-4 px-2 py-1 rounded bg-orange-500 text-white text-xs opacity-90 cursor-not-allowed shrink-0"
                   title="Téléchargement en cours"
