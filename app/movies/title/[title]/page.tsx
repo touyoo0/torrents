@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { FiArrowLeft, FiPlay, FiDownload } from 'react-icons/fi';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 
 interface Movie {
   id: number;
@@ -74,6 +74,7 @@ function formatDate(dateStr: string | undefined): string {
 }
 
 export default function MovieTitlePage() {
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState<Record<number, boolean>>({});
   const [statusMessage, setStatusMessage] = useState<Record<number, string>>({});
   // Statut de téléchargement par torrent id: '✔️ Téléchargé' | '⌛ Téléchargement'
@@ -168,8 +169,13 @@ export default function MovieTitlePage() {
       
       if (response.ok) {
         setStatusMessage(prev => ({ ...prev, [torrentId]: 'Téléchargement démarré!' }));
-        // Optionnel: on peut relancer une récupération des statuts pour refléter l'état serveur
-        // (laisser tel quel pour le moment)
+        // Rediriger vers la page téléchargements filtrée sur l'élément en cours
+        const catParam = category === 'Série' ? 'serie' : 'films';
+        const item = movies.find(m => m.id === torrentId) || movies[0];
+        const q = item?.title || title;
+        setTimeout(() => {
+          router.push(`/telechargements?categorie=${encodeURIComponent(catParam)}&q=${encodeURIComponent(q)}`);
+        }, 1000);
       } else {
         setStatusMessage(prev => ({ ...prev, [torrentId]: `Erreur: ${data.error || 'Échec du téléchargement'}` }));
         // En cas d'erreur, permettre un nouveau clic
