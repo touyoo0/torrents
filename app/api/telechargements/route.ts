@@ -163,7 +163,84 @@ export async function GET(req: NextRequest) {
        LIMIT 200`,
       params
     );
-    return new Response(JSON.stringify({ torrents: rows }), {
+    // Try to enrich with qBittorrent progress for downloading items
+    let enriched = rows as (TorrentRow & { progress?: number })[];
+    try {
+      const needProgress = Array.isArray(enriched) && enriched.some(r => r.statut === '⌛ Téléchargement');
+      const QB_HOST = process.env.QB_HOST;
+      const QB_USER = process.env.QB_USER;
+      const QB_PASSWORD = process.env.QB_PASSWORD;
+
+      if (needProgress && QB_HOST && QB_USER && QB_PASSWORD) {
+        // Login to qBittorrent and capture session cookie
+        const loginResp = await fetch(`${QB_HOST}/api/v2/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ username: QB_USER, password: QB_PASSWORD }),
+        });
+        const setCookie = loginResp.headers.get('set-cookie') || '';
+        // Extract SID from Set-Cookie like: SID=xyz; HttpOnly; Path=/
+        const sidMatch = /SID=([^;]+)/i.exec(setCookie || '');
+        const sid = sidMatch?.[1] ? `SID=${sidMatch[1]}` : '';
+        if (loginResp.ok && sid) {
+          // Fetch all torrents to include paused items as well
+          const headers = { Cookie: sid } as any;
+          const allResp = await fetch(`${QB_HOST}/api/v2/torrents/info`, { headers });
+          const infos: any[] = allResp.ok ? await allResp.json() : [];
+
+          // Normalize helper
+          const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+          // Prepare qb items with normalized names
+          type QbItem = { name: string; n: string; progress?: number };
+          const qbItems: QbItem[] = [];
+          for (const t of infos) {
+            if (t && typeof t.name === 'string') {
+              const p = typeof t.progress === 'number' ? Math.round(t.progress * 100) : undefined;
+              qbItems.push({ name: t.name, n: norm(t.name), progress: p });
+            }
+          }
+
+          // Fast exact map on normalized names
+          const exact = new Map<string, number>();
+          for (const it of qbItems) {
+            if (typeof it.progress === 'number') exact.set(it.name, it.progress);
+          }
+
+          // Attach to matching rows (exact then partial contains)
+          enriched = enriched.map(r => {
+            if (r.statut !== '⌛ Téléchargement') return r;
+            const rExact = exact.get(r.name);
+            if (typeof rExact === 'number') return { ...r, progress: rExact };
+
+            const rn = norm(r.name || '');
+            if (!rn) return r;
+            let best: number | undefined;
+            let bestLen = 0;
+            for (const it of qbItems) {
+              if (typeof it.progress !== 'number') continue;
+              // Two-way contains match on normalized names
+              const aInB = it.n.includes(rn);
+              const bInA = rn.includes(it.n);
+              if (aInB || bInA) {
+                const score = Math.min(it.n.length, rn.length);
+                if (score > bestLen) {
+                  bestLen = score;
+                  best = it.progress;
+                }
+              }
+            }
+            if (typeof best === 'number') return { ...r, progress: best };
+            return r;
+          });
+        }
+      }
+    } catch (e) {
+      console.error('qBittorrent progress fetch failed:', e);
+      // fail silently, keep base rows
+    }
+
+    return new Response(JSON.stringify({ torrents: enriched }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
