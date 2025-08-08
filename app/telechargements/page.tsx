@@ -1,5 +1,6 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+export const dynamic = 'force-dynamic';
+import React, { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 
@@ -16,12 +17,20 @@ interface Torrent {
   episode?: number | null;
 }
 
+export default function TelechargesPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-gradient-to-br from-gray-950 via-slate-900 to-gray-950 text-white p-8"><div className="container mx-auto py-10 px-4 text-gray-300">Chargement...</div></main>}>
+      <TelechargesPageInner />
+    </Suspense>
+  );
+}
+
 const STATUTS_TELECHARGES = [
   "✔️ Téléchargé",
   "⌛ Téléchargement"
 ];
 
-export default function TelechargesPage() {
+function TelechargesPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [torrents, setTorrents] = useState<Torrent[]>([]);
