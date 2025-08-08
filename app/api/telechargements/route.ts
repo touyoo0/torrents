@@ -37,13 +37,28 @@ export async function DELETE(req: NextRequest) {
     const row: any = Array.isArray(rows) && rows.length ? rows[0] : null;
     const repertoire: string | null = row?.repertoire ?? null;
 
-    if (repertoire && typeof repertoire === 'string' && repertoire.trim().length > 0) {
-      try {
-        await fs.rm(repertoire, { recursive: true, force: true });
-      } catch (e) {
-        console.error('Erreur suppression repertoire:', e);
-        // On continue malgré tout pour mettre à jour la DB
-      }
+    if (!repertoire || typeof repertoire !== 'string' || repertoire.trim().length === 0) {
+      return new Response(JSON.stringify({ error: "Aucun chemin 'repertoire' enregistré pour ce torrent" }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Vérifier existence et tenter suppression
+    try {
+      await fs.stat(repertoire).catch((err: any) => {
+        if (err && err.code === 'ENOENT') {
+          return null; // déjà inexistant
+        }
+        throw err;
+      });
+      await fs.rm(repertoire, { recursive: true, force: true });
+    } catch (e: any) {
+      console.error('Erreur suppression repertoire:', e?.message || e);
+      return new Response(JSON.stringify({ error: `Suppression impossible pour: ${repertoire}` }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     await pool.query(
