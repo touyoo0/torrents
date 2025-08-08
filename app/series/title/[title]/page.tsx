@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { FiArrowLeft, FiPlay, FiChevronRight } from 'react-icons/fi';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 
 interface Serie {
   id: number;
@@ -99,6 +99,7 @@ function formatDate(dateStr: string | undefined): string {
 }
 
 export default function SerieTitlePage() {
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState<Record<number, boolean>>({});
   const [statusMessage, setStatusMessage] = useState<Record<number, string>>({});
   const [downloadStatus, setDownloadStatus] = useState<Record<number, string>>({});
@@ -194,6 +195,12 @@ export default function SerieTitlePage() {
 
       if (response.ok) {
         setStatusMessage(prev => ({ ...prev, [torrentId]: 'Téléchargement démarré!' }));
+        // Rediriger vers la page téléchargements filtrée sur l'élément en cours
+        const item = series.find(s => s.id === torrentId) || series[0];
+        const q = item?.title || title;
+        setTimeout(() => {
+          router.push(`/telechargements?categorie=serie&q=${encodeURIComponent(q)}`);
+        }, 1000);
       } else {
         setStatusMessage(prev => ({ ...prev, [torrentId]: `Erreur: ${data?.error || 'Échec du téléchargement'}` }));
         setDownloadStatus(prev => { const ns = { ...prev }; delete ns[torrentId]; return ns; });
