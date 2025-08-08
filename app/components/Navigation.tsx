@@ -13,6 +13,7 @@ export default function Navigation() {
   const [total, setTotal] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [nouveautesCount, setNouveautesCount] = useState<number | null>(null);
 
   useEffect(() => {
     fetch("/api/disk-space")
@@ -26,6 +27,25 @@ export default function Navigation() {
         }
       })
       .catch(() => setError("Impossible de récupérer l'espace disque"));
+  }, []);
+
+  // Fetch total count of nouveautés (films + séries)
+  useEffect(() => {
+    let aborted = false;
+    fetch('/api/nouveautes?count=true')
+      .then((r) => r.ok ? r.json() : Promise.reject(new Error('bad status')))
+      .then((data) => {
+        if (!aborted) {
+          const n = typeof data?.total === 'number' ? data.total : 0;
+          setNouveautesCount(n);
+        }
+      })
+      .catch(() => {
+        if (!aborted) setNouveautesCount(null);
+      });
+    return () => {
+        aborted = true;
+    };
   }, []);
 
   let percent = 0;
@@ -54,7 +74,14 @@ export default function Navigation() {
               Accueil
             </NavLink>
             <NavLink href="/nouveautes" active={isActive('/nouveautes')}>
-              Nouveautés
+              <span className="inline-flex items-center">
+                Nouveautés
+                {typeof nouveautesCount === 'number' && nouveautesCount > 0 && (
+                  <span className="ml-2 inline-flex items-center justify-center min-w-[20px] h-[20px] px-1 text-xs font-semibold rounded-full bg-blue-600 text-white">
+                    {nouveautesCount > 99 ? '99+' : nouveautesCount}
+                  </span>
+                )}
+              </span>
             </NavLink>
             <NavLink href="/movies" active={isActive('/movies')}>
               Films
@@ -119,7 +146,14 @@ export default function Navigation() {
                   Accueil
                 </MobileNavLink>
                 <MobileNavLink href="/nouveautes" active={isActive('/nouveautes')} onClick={() => setIsMenuOpen(false)}>
-                  Nouveautés
+                  <span className="inline-flex items-center">
+                    Nouveautés
+                    {typeof nouveautesCount === 'number' && nouveautesCount > 0 && (
+                      <span className="ml-2 flex items-center justify-center w-7 h-7 text-sm font-semibold rounded-full bg-blue-600 text-white">
+                        {nouveautesCount > 99 ? '99+' : nouveautesCount}
+                      </span>
+                    )}
+                  </span>
                 </MobileNavLink>
                 <MobileNavLink href="/movies" active={isActive('/movies')} onClick={() => setIsMenuOpen(false)}>
                   Films
