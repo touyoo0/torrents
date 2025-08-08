@@ -9,9 +9,16 @@ echo "Le torrent ID est : $torrent_id"
 echo "La catégorie est : $category"
 echo "Le répertoire est : $repertoire"
 
-# Activer le bon environnement virtuel
-source /home/touyoo/airflow/venv/bin/activate
+# Vérifier si la catégorie contient "DAG"
+if [[ "$category" == *"DAG"* ]]; then
+    echo "Catégorie valide, déclenchement du DAG Airflow..."
 
-# Déclencher le DAG Airflow avec les paramètres
-airflow dags trigger torrents_finished \
-    --conf "{\"torrent_id\": \"$torrent_id\", \"category\": \"$category\", \"repertoire\": \"$repertoire\"}"
+    # Activer l'environnement virtuel d'Airflow
+    source /home/touyoo/airflow/venv/bin/activate
+
+    # Déclencher le DAG avec les paramètres
+    airflow dags trigger torrents_finished \
+        --conf "{\"torrent_id\": \"$torrent_id\", \"category\": \"$category\", \"repertoire\": \"$repertoire\"}"
+else
+    echo "Catégorie ignorée (ne contient pas 'DAG'), aucun DAG déclenché."
+fi
