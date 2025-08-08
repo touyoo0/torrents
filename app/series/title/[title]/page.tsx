@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { FiArrowLeft, FiPlay, FiChevronRight } from 'react-icons/fi';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 
 interface Serie {
   id: number;
@@ -100,6 +100,10 @@ function formatDate(dateStr: string | undefined): string {
 
 export default function SerieTitlePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromParam = searchParams.get('from');
+  const backHref = fromParam === 'nouveautes' ? '/nouveautes' : '/series';
+  const backLabel = fromParam === 'nouveautes' ? 'Retour aux nouveautés' : 'Retour aux séries';
   const [isLoading, setIsLoading] = useState<Record<number, boolean>>({});
   const [statusMessage, setStatusMessage] = useState<Record<number, string>>({});
   const [downloadStatus, setDownloadStatus] = useState<Record<number, string>>({});
@@ -230,8 +234,8 @@ export default function SerieTitlePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-slate-900 to-gray-950 text-white p-8">
       <div className="flex justify-center w-full mb-8">
-        <Link href="/series" className="flex items-center text-slate-300 hover:text-white">
-          <FiArrowLeft className="mr-2" /> Retour aux séries
+        <Link href={backHref} className="flex items-center text-slate-300 hover:text-white">
+          <FiArrowLeft className="mr-2" /> {backLabel}
         </Link>
       </div>
 

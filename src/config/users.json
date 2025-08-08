@@ -8,32 +8,37 @@
         "192.168.1.24",
         "100.94.16.208",
         "127.0.0.1"
-      ]
+      ],
+      "last_activity": "2025-08-07T21:56:23.893Z"
     },
     "Maïtena": {
       "team": "Default",
       "ip_addresses": [
         "192.168.1.36",
         "100.94.26.198"
-      ]
+      ],
+      "last_activity": "2025-08-08T21:13:06.388970+00:00"
     },
     "Xavier": {
       "team": "Default",
       "ip_addresses": [
         "100.74.115.15"
-      ]
+      ],
+      "last_activity": "2025-08-08T21:13:06.388970+00:00"
     },
     "Océane": {
       "team": "Default",
       "ip_addresses": [
         "100.92.218.90"
-      ]
+      ],
+      "last_activity": "2025-08-08T21:13:06.388970+00:00"
     },
     "Séverine": {
       "team": "Default",
       "ip_addresses": [
         "100.120.127.169"
-      ]
+      ],
+      "last_activity": "2025-08-08T21:13:06.388970+00:00"
     }
   }
 }

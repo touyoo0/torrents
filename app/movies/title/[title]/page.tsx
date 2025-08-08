@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { FiArrowLeft, FiPlay, FiDownload } from 'react-icons/fi';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 
 interface Movie {
   id: number;
@@ -75,6 +75,10 @@ function formatDate(dateStr: string | undefined): string {
 
 export default function MovieTitlePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromParam = searchParams.get('from');
+  const backHref = fromParam === 'nouveautes' ? '/nouveautes' : '/movies';
+  const backLabel = fromParam === 'nouveautes' ? 'Retour aux nouveautés' : 'Retour aux films';
   const [isLoading, setIsLoading] = useState<Record<number, boolean>>({});
   const [statusMessage, setStatusMessage] = useState<Record<number, string>>({});
   // Statut de téléchargement par torrent id: '✔️ Téléchargé' | '⌛ Téléchargement'
@@ -219,8 +223,8 @@ export default function MovieTitlePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-slate-900 to-gray-950 text-white p-8">
       <div className="flex justify-center w-full mb-8">
-        <Link href="/movies" className="flex items-center text-slate-300 hover:text-white">
-          <FiArrowLeft className="mr-2" /> Retour aux films
+        <Link href={backHref} className="flex items-center text-slate-300 hover:text-white">
+          <FiArrowLeft className="mr-2" /> {backLabel}
         </Link>
       </div>
       

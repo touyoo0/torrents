@@ -1,5 +1,5 @@
 "use client";
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
@@ -7,6 +7,8 @@ import { FiMenu, FiX } from 'react-icons/fi';
 
 export default function Navigation() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const from = searchParams?.get('from');
   const [free, setFree] = useState<number | null>(null);
   const [total, setTotal] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +34,12 @@ export default function Navigation() {
   }
   
   const isActive = (path: string) => {
+    // If we navigated from Nouveautés, keep Nouveautés tab active
+    // and prevent Films/Séries from being marked active even on their subroutes.
+    if (from === 'nouveautes') {
+      if (path === '/nouveautes') return true;
+      if (path === '/movies' || path === '/series') return false;
+    }
     return pathname === path || pathname.startsWith(`${path}/`);
   };
 
@@ -44,6 +52,9 @@ export default function Navigation() {
           <div className="hidden md:flex space-x-6 ml-0">
             <NavLink href="/" active={isActive('/')}>
               Accueil
+            </NavLink>
+            <NavLink href="/nouveautes" active={isActive('/nouveautes')}>
+              Nouveautés
             </NavLink>
             <NavLink href="/movies" active={isActive('/movies')}>
               Films
@@ -106,6 +117,9 @@ export default function Navigation() {
               <div className="flex flex-col space-y-4 pb-4">
                 <MobileNavLink href="/" active={isActive('/')} onClick={() => setIsMenuOpen(false)}>
                   Accueil
+                </MobileNavLink>
+                <MobileNavLink href="/nouveautes" active={isActive('/nouveautes')} onClick={() => setIsMenuOpen(false)}>
+                  Nouveautés
                 </MobileNavLink>
                 <MobileNavLink href="/movies" active={isActive('/movies')} onClick={() => setIsMenuOpen(false)}>
                   Films
