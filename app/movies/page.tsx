@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import { FiFilm, FiLoader } from "react-icons/fi";
 
@@ -83,38 +83,37 @@ export default function MoviesPage() {
   
   // Générer les plages d'années
   const currentYear = new Date().getFullYear();
-  const yearRanges: YearRange[] = [];
-  
-  // Ajouter les décennies jusqu'aux années 90
-  for (let year = 1950; year < 1990; year += 10) {
-    yearRanges.push({
-      label: `Années ${year.toString().substring(2)}`,
-      value: `decade_${year}`,
-      startYear: year,
-      endYear: year + 9
+  const yearRanges: YearRange[] = useMemo(() => {
+    const ranges: YearRange[] = [];
+    // Ajouter les décennies jusqu'aux années 90
+    for (let year = 1950; year < 1990; year += 10) {
+      ranges.push({
+        label: `Années ${year.toString().substring(2)}`,
+        value: `decade_${year}`,
+        startYear: year,
+        endYear: year + 9
+      });
+    }
+    // Ajouter les années 90
+    ranges.push({
+      label: 'Années 90',
+      value: 'decade_1990',
+      startYear: 1990,
+      endYear: 1999
     });
-  }
-  
-  // Ajouter les années 90
-  yearRanges.push({
-    label: 'Années 90',
-    value: 'decade_1990',
-    startYear: 1990,
-    endYear: 1999
-  });
-  
-  // Ajouter les années individuelles à partir de 2000 jusqu'à l'année en cours
-  for (let year = 2000; year <= currentYear; year++) {
-    yearRanges.push({
-      label: year.toString(),
-      value: `year_${year}`,
-      startYear: year,
-      endYear: year
-    });
-  }
-  
-  // Trier par année décroissante
-  yearRanges.sort((a, b) => b.startYear - a.startYear);
+    // Ajouter les années individuelles à partir de 2000 jusqu'à l'année en cours
+    for (let year = 2000; year <= currentYear; year++) {
+      ranges.push({
+        label: year.toString(),
+        value: `year_${year}`,
+        startYear: year,
+        endYear: year
+      });
+    }
+    // Trier par année décroissante
+    ranges.sort((a, b) => b.startYear - a.startYear);
+    return ranges;
+  }, [currentYear]);
 
   const fetchMovies = useCallback(async (page: number) => {
     setLoading(true);
@@ -160,7 +159,7 @@ export default function MoviesPage() {
       setTotalPages(Math.ceil(total / MOVIES_PER_PAGE));
     }
     setLoading(false);
-  }, []);
+  }, [searchQuery, selectedGenre, selectedYear, sortBy, yearRanges]);
   
   // Fonction pour récupérer uniquement le nombre total de films
   const fetchTotalMovies = useCallback(async () => {
