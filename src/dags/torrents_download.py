@@ -75,6 +75,7 @@ def A_retrieve_variables(**kwargs):
         ti.xcom_push(key='db', value=db)
         ti.xcom_push(key='torrent_id', value=torrent_id)
         ti.xcom_push(key='category', value=category)
+        ti.xcom_push(key='title', value=title)
 
         return ygg, qb, db, torrent_id, category
     except Exception as e:
