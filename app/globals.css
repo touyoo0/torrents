@@ -48,6 +48,6 @@ html, body {
   overflow-x: hidden;
   /* Allow vertical panning only on touch devices */
   touch-action: pan-y;
-  /* Stop sideways overscroll/bounce */
-  overscroll-behavior-x: none;
+  /* Stop overscroll/bounce in all directions */
+  overscroll-behavior: none;
 }
