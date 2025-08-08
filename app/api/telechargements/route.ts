@@ -72,44 +72,22 @@ export async function DELETE(req: NextRequest) {
       });
     }
 
-    // Récupérer le répertoire courant
-    const [rows] = await pool.query<TorrentRow[]>(
-      'SELECT id, repertoire FROM ygg_torrents_new WHERE id = ? LIMIT 1',
-      [id]
-    );
-    const row: any = Array.isArray(rows) && rows.length ? rows[0] : null;
-    const repertoire: string | null = row?.repertoire ?? null;
+    // Déclenche le DAG Airflow torrents_delete via l'endpoint interne
+    const airflowUrl = new URL('/api/airflow', req.url).toString();
+    const res = await fetch(airflowUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dagId: 'torrents_delete', params: { torrent_id: id } }),
+    }).catch(() => null);
 
-    if (!repertoire || typeof repertoire !== 'string' || repertoire.trim().length === 0) {
-      return new Response(JSON.stringify({ error: "Aucun chemin 'repertoire' enregistré pour ce torrent" }), {
-        status: 400,
+    if (!res || !res.ok) {
+      return new Response(JSON.stringify({ error: "Échec du déclenchement du DAG 'torrents_delete'" }), {
+        status: 502,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    // Vérifier existence et tenter suppression
-    try {
-      await fs.stat(repertoire).catch((err: any) => {
-        if (err && err.code === 'ENOENT') {
-          return null; // déjà inexistant
-        }
-        throw err;
-      });
-      await fs.rm(repertoire, { recursive: true, force: true });
-    } catch (e: any) {
-      console.error('Erreur suppression repertoire:', e?.message || e);
-      return new Response(JSON.stringify({ error: `Suppression impossible pour: ${repertoire}` }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    await pool.query(
-      "UPDATE ygg_torrents_new SET statut = '➕ Ajouter', repertoire = NULL WHERE id = ?",
-      [id]
-    );
-
-    return new Response(JSON.stringify({ success: true }), {
+    return new Response(JSON.stringify({ success: true, triggered: 'torrents_delete' }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
