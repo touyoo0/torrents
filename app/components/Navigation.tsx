@@ -48,6 +48,24 @@ export default function Navigation() {
     };
   }, []);
 
+  // Listen for client-side updates to nouveautés count (e.g., after 'Marquer comme lu')
+  useEffect(() => {
+    const handler = (e: Event) => {
+      try {
+        const detail = (e as CustomEvent).detail as { count?: number } | undefined;
+        if (detail && typeof detail.count === 'number') {
+          setNouveautesCount(detail.count);
+        } else {
+          setNouveautesCount(0);
+        }
+      } catch {
+        setNouveautesCount(0);
+      }
+    };
+    window.addEventListener('nouveautes:updated', handler as EventListener);
+    return () => window.removeEventListener('nouveautes:updated', handler as EventListener);
+  }, []);
+
   let percent = 0;
   if (free !== null && total !== null && total > 0) {
     percent = (free / total) * 100;

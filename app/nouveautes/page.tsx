@@ -68,6 +68,7 @@ export default function NouveautesPage() {
   const [loading, setLoading] = useState(false);
   const [overviewNouveaute, setOverviewNouveaute] = useState<Nouveautes | null>(null);
   const [selectedTab, setSelectedTab] = useState<'films' | 'series'>('films');
+  const [marking, setMarking] = useState(false);
   
 
   const fetchNouveautes = useCallback(async (page: number) => {
@@ -122,6 +123,26 @@ export default function NouveautesPage() {
     }
   }, [selectedTab]);
 
+  const markAsRead = useCallback(async () => {
+    try {
+      setMarking(true);
+      const res = await fetch('/api/nouveautes/mark', { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to mark as read');
+      // Reset to first page and refresh counts and list
+      setCurrentPage(1);
+      await fetchTotalNouveautes();
+      await fetchNouveautes(1);
+      // Notify navigation to clear the nouveautes badge immediately
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('nouveautes:updated', { detail: { count: 0 } }));
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setMarking(false);
+    }
+  }, [fetchNouveautes, fetchTotalNouveautes]);
+
   useEffect(() => {
     fetchNouveautes(currentPage);
     // Remonter en haut de la page lors du changement de page
@@ -159,29 +180,46 @@ export default function NouveautesPage() {
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 font-display">
             Nouveautés
           </h1>
-          {/* Toggle Films / Séries */}
-          <div className="mt-2 flex items-center justify-center gap-3">
-            <button
-              onClick={() => { setSelectedTab('films'); setCurrentPage(1); }}
-              className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
-                selectedTab === 'films'
-                  ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white border-transparent shadow-lg shadow-blue-500/20'
-                  : 'border-white/20 text-white/80 hover:bg-white/10'
-              }`}
-            >
-              Films
-            </button>
-            <button
-              onClick={() => { setSelectedTab('series'); setCurrentPage(1); }}
-              className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
-                selectedTab === 'series'
-                  ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white border-transparent shadow-lg shadow-blue-500/20'
-                  : 'border-white/20 text-white/80 hover:bg-white/10'
-              }`}
-            >
-              Séries
-            </button>
-          </div>
+          {/* Toggle Films / Séries and Mark button shown only when there are results */}
+          {!loading && nouveautes.length > 0 && (
+            <>
+              <div className="mt-2 flex items-center justify-center gap-3">
+                <button
+                  onClick={() => { setSelectedTab('films'); setCurrentPage(1); }}
+                  className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
+                    selectedTab === 'films'
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white border-transparent shadow-lg shadow-blue-500/20'
+                      : 'border-white/20 text-white/80 hover:bg-white/10'
+                  }`}
+                >
+                  Films
+                </button>
+                <button
+                  onClick={() => { setSelectedTab('series'); setCurrentPage(1); }}
+                  className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
+                    selectedTab === 'series'
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white border-transparent shadow-lg shadow-blue-500/20'
+                      : 'border-white/20 text-white/80 hover:bg-white/10'
+                  }`}
+                >
+                  Séries
+                </button>
+              </div>
+              <div className="mt-4 flex items-center justify-center">
+                <button
+                  onClick={markAsRead}
+                  disabled={marking}
+                  className={`px-5 py-2 rounded-full text-sm font-semibold transition-colors border ${
+                    marking
+                      ? 'border-white/20 text-white/60 bg-white/5 cursor-not-allowed'
+                      : 'border-white/20 text-white/90 hover:bg-white/10'
+                  }`}
+                >
+                  {marking ? 'Nettoyage…' : 'Marquer comme lu'}
+                </button>
+              </div>
+            </>
+          )}
         </motion.div>
 
         {/* Loader */}

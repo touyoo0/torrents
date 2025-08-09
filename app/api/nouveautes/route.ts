@@ -1,8 +1,7 @@
 import { NextRequest } from 'next/server';
 import pool from '@/lib/db';
 import { RowDataPacket, FieldPacket } from 'mysql2';
-import fs from 'fs/promises';
-import path from 'path';
+// removed fs/path: last_activity now resolved from DB
 
 interface CountResult extends RowDataPacket {
   total: number;
@@ -20,9 +19,7 @@ interface TorrentRow extends RowDataPacket {
   created_at: string;
 }
 
-type UsersConfig = {
-  users: Record<string, { ip_addresses: string[]; last_activity?: string }>;
-};
+// users.json config removed in favor of users table lookup
 
 // Helpers to normalize and resolve client IP (aligns with movies/series endpoints)
 function normalizeIp(ip: string | null | undefined): string | null {
@@ -46,16 +43,33 @@ function getClientIp(req: NextRequest): string | null {
 async function resolveLastActivityForIp(ip: string | null): Promise<string | null> {
   if (!ip) return null;
   try {
-    const usersPath = path.join(process.cwd(), 'src', 'config', 'users.json');
-    const raw = await fs.readFile(usersPath, 'utf-8');
-    const data = JSON.parse(raw) as UsersConfig;
-    for (const [, user] of Object.entries(data.users || {})) {
-      if (Array.isArray(user.ip_addresses) && user.ip_addresses.includes(ip)) {
-        return user.last_activity || null;
+    // Try to match against different possible formats stored in users.ip_adresses (varchar255):
+    // - JSON array string of IPs (e.g., ["1.2.3.4","5.6.7.8"]) -> JSON_VALID + JSON_CONTAINS
+    // - Comma-separated list (e.g., 1.2.3.4,5.6.7.8) -> FIND_IN_SET after stripping brackets/quotes
+    // - Single IP string -> equality
+    const query = `
+      SELECT last_activity
+      FROM users
+      WHERE (
+        (JSON_VALID(ip_adresses) AND JSON_CONTAINS(CAST(ip_adresses AS JSON), JSON_QUOTE(?)))
+        OR ip_adresses = ?
+        OR FIND_IN_SET(?, REPLACE(REPLACE(REPLACE(ip_adresses,'"',''), '[',''),']',''))
+      )
+      ORDER BY last_activity DESC
+      LIMIT 1
+    `;
+    const [rows] = await pool.query<RowDataPacket[]>(query, [ip, ip, ip]);
+    if ((rows as any).length > 0) {
+      const la: any = (rows as any)[0].last_activity;
+      // Normalize to string for downstream toMysqlDateTime
+      if (la instanceof Date) {
+        const pad = (n: number) => String(n).padStart(2, '0');
+        return `${la.getFullYear()}-${pad(la.getMonth() + 1)}-${pad(la.getDate())} ${pad(la.getHours())}:${pad(la.getMinutes())}:${pad(la.getSeconds())}`;
       }
+      if (typeof la === 'string') return la;
     }
   } catch (e) {
-    console.error('Unable to read users.json for last_activity', e);
+    console.error('Unable to resolve last_activity from users table', e);
   }
   return null;
 }

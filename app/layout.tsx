@@ -30,6 +30,13 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Torrents",
   description: "Gestion et téléchargement de torrents",
+  manifest: "/manifest.webmanifest",
+  themeColor: "#000000",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Torrents",
+  },
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
