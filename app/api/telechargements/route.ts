@@ -1,6 +1,4 @@
 import { NextRequest } from 'next/server';
-import fs from 'fs/promises';
-import path from 'path';
 import pool from '@/lib/db';
 import { RowDataPacket } from 'mysql2';
 
@@ -18,9 +16,10 @@ interface TorrentRow extends RowDataPacket {
   repertoire?: string | null;
 }
 
-type UsersConfig = {
-  users: Record<string, { team: string; ip_addresses: string[] }>;
-};
+// users.json replaced by DB table `users` with columns:
+// - ip_adresses (varchar) possibly JSON array, CSV, or single IP
+// - username (string)
+// - team (string, optional)
 
 function normalizeIp(ip: string | null | undefined): string | null {
   if (!ip) return null;
@@ -42,21 +41,23 @@ function getClientIp(req: NextRequest): string | null {
 async function resolveUserFromIp(ip: string | null): Promise<{ username: string; team: string } | null> {
   if (!ip) return null;
   try {
-    const usersPath = path.join(process.cwd(), 'src', 'config', 'users.json');
-    const raw = await fs.readFile(usersPath, 'utf8');
-    const cfg = JSON.parse(raw) as UsersConfig;
-    const norm = normalizeIp(ip);
-    for (const [username, meta] of Object.entries(cfg.users || {})) {
-      const list = Array.isArray(meta.ip_addresses) ? meta.ip_addresses : [];
-      // Normalize each stored IP for robust comparison
-      const match = list.some(v => normalizeIp(v) === norm);
-      if (match) {
-        return { username, team: meta.team };
-      }
+    const query = `
+      SELECT name AS username, team
+      FROM users
+      WHERE FIND_IN_SET(?, ip_adresses) OR ip_adresses = ?
+      ORDER BY last_activity DESC
+      LIMIT 1
+    `;
+    const [rows] = await pool.query<RowDataPacket[]>(query, [ip, ip]);
+    if ((rows as any).length > 0) {
+      const r: any = (rows as any)[0];
+      const username = typeof r.username === 'string' ? r.username : null;
+      const team = typeof r.team === 'string' ? r.team : '';
+      if (username) return { username, team };
     }
     return null;
   } catch (e) {
-    console.error('users.json read/parse error:', e);
+    console.error('Unable to resolve user from users table', e);
     return null;
   }
 }
@@ -72,44 +73,22 @@ export async function DELETE(req: NextRequest) {
       });
     }
 
-    // Récupérer le répertoire courant
-    const [rows] = await pool.query<TorrentRow[]>(
-      'SELECT id, repertoire FROM ygg_torrents_new WHERE id = ? LIMIT 1',
-      [id]
-    );
-    const row: any = Array.isArray(rows) && rows.length ? rows[0] : null;
-    const repertoire: string | null = row?.repertoire ?? null;
+    // Déclenche le DAG Airflow torrents_delete via l'endpoint interne
+    const airflowUrl = new URL('/api/airflow', req.url).toString();
+    const res = await fetch(airflowUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dagId: 'torrents_delete', params: { torrent_id: id } }),
+    }).catch(() => null);
 
-    if (!repertoire || typeof repertoire !== 'string' || repertoire.trim().length === 0) {
-      return new Response(JSON.stringify({ error: "Aucun chemin 'repertoire' enregistré pour ce torrent" }), {
-        status: 400,
+    if (!res || !res.ok) {
+      return new Response(JSON.stringify({ error: "Échec du déclenchement du DAG 'torrents_delete'" }), {
+        status: 502,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    // Vérifier existence et tenter suppression
-    try {
-      await fs.stat(repertoire).catch((err: any) => {
-        if (err && err.code === 'ENOENT') {
-          return null; // déjà inexistant
-        }
-        throw err;
-      });
-      await fs.rm(repertoire, { recursive: true, force: true });
-    } catch (e: any) {
-      console.error('Erreur suppression repertoire:', e?.message || e);
-      return new Response(JSON.stringify({ error: `Suppression impossible pour: ${repertoire}` }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    await pool.query(
-      "UPDATE ygg_torrents_new SET statut = '➕ Ajouter', repertoire = NULL WHERE id = ?",
-      [id]
-    );
-
-    return new Response(JSON.stringify({ success: true }), {
+    return new Response(JSON.stringify({ success: true, triggered: 'torrents_delete' }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });

@@ -1,5 +1,5 @@
 "use client";
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
@@ -7,10 +7,13 @@ import { FiMenu, FiX } from 'react-icons/fi';
 
 export default function Navigation() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const from = searchParams?.get('from');
   const [free, setFree] = useState<number | null>(null);
   const [total, setTotal] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [nouveautesCount, setNouveautesCount] = useState<number | null>(null);
 
   useEffect(() => {
     fetch("/api/disk-space")
@@ -26,12 +29,55 @@ export default function Navigation() {
       .catch(() => setError("Impossible de récupérer l'espace disque"));
   }, []);
 
+  // Fetch total count of nouveautés (films + séries)
+  useEffect(() => {
+    let aborted = false;
+    fetch('/api/nouveautes?count=true')
+      .then((r) => r.ok ? r.json() : Promise.reject(new Error('bad status')))
+      .then((data) => {
+        if (!aborted) {
+          const n = typeof data?.total === 'number' ? data.total : 0;
+          setNouveautesCount(n);
+        }
+      })
+      .catch(() => {
+        if (!aborted) setNouveautesCount(null);
+      });
+    return () => {
+        aborted = true;
+    };
+  }, []);
+
+  // Listen for client-side updates to nouveautés count (e.g., after 'Marquer comme lu')
+  useEffect(() => {
+    const handler = (e: Event) => {
+      try {
+        const detail = (e as CustomEvent).detail as { count?: number } | undefined;
+        if (detail && typeof detail.count === 'number') {
+          setNouveautesCount(detail.count);
+        } else {
+          setNouveautesCount(0);
+        }
+      } catch {
+        setNouveautesCount(0);
+      }
+    };
+    window.addEventListener('nouveautes:updated', handler as EventListener);
+    return () => window.removeEventListener('nouveautes:updated', handler as EventListener);
+  }, []);
+
   let percent = 0;
   if (free !== null && total !== null && total > 0) {
     percent = (free / total) * 100;
   }
   
   const isActive = (path: string) => {
+    // If we navigated from Nouveautés, keep Nouveautés tab active
+    // and prevent Films/Séries from being marked active even on their subroutes.
+    if (from === 'nouveautes') {
+      if (path === '/nouveautes') return true;
+      if (path === '/movies' || path === '/series') return false;
+    }
     return pathname === path || pathname.startsWith(`${path}/`);
   };
 
@@ -44,6 +90,16 @@ export default function Navigation() {
           <div className="hidden md:flex space-x-6 ml-0">
             <NavLink href="/" active={isActive('/')}>
               Accueil
+            </NavLink>
+            <NavLink href="/nouveautes" active={isActive('/nouveautes')}>
+              <span className="inline-flex items-center">
+                Nouveautés
+                {typeof nouveautesCount === 'number' && nouveautesCount > 0 && (
+                  <span className="ml-2 inline-flex items-center justify-center min-w-[20px] h-[20px] px-1 text-xs font-semibold rounded-full bg-blue-600 text-white">
+                    {nouveautesCount > 99 ? '99+' : nouveautesCount}
+                  </span>
+                )}
+              </span>
             </NavLink>
             <NavLink href="/movies" active={isActive('/movies')}>
               Films
@@ -90,13 +146,19 @@ export default function Navigation() {
           )}
         </div>
 
-        {/* Bouton menu mobile */}
+        {/* Bouton menu mobile (avec pastille nouveautés) */}
         <button 
-          className="md:hidden text-white focus:outline-none" 
+          className="relative md:hidden text-white focus:outline-none"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           aria-label="Toggle menu"
         >
           {isMenuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
+          {/* Pastille visible même menu replié */}
+          {!isMenuOpen && typeof nouveautesCount === 'number' && nouveautesCount > 0 && (
+            <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-semibold rounded-full bg-blue-600 text-white">
+              {nouveautesCount > 99 ? '99+' : nouveautesCount}
+            </span>
+          )}
         </button>
 
         {/* Menu mobile */}
@@ -106,6 +168,16 @@ export default function Navigation() {
               <div className="flex flex-col space-y-4 pb-4">
                 <MobileNavLink href="/" active={isActive('/')} onClick={() => setIsMenuOpen(false)}>
                   Accueil
+                </MobileNavLink>
+                <MobileNavLink href="/nouveautes" active={isActive('/nouveautes')} onClick={() => setIsMenuOpen(false)}>
+                  <span className="inline-flex items-center">
+                    Nouveautés
+                    {typeof nouveautesCount === 'number' && nouveautesCount > 0 && (
+                      <span className="ml-2 flex items-center justify-center w-7 h-7 text-sm font-semibold rounded-full bg-blue-600 text-white">
+                        {nouveautesCount > 99 ? '99+' : nouveautesCount}
+                      </span>
+                    )}
+                  </span>
                 </MobileNavLink>
                 <MobileNavLink href="/movies" active={isActive('/movies')} onClick={() => setIsMenuOpen(false)}>
                   Films

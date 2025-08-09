@@ -1,7 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { Suspense } from 'react';
 import { Geist, Geist_Mono } from "next/font/google";
 import localFont from 'next/font/local';
 import Navigation from "./components/Navigation";
+import PageBackground from "./components/PageBackground";
 import "./globals.css";
 
 const gilroy = localFont({
@@ -29,11 +31,21 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Torrents",
   description: "Gestion et téléchargement de torrents",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Torrents",
+  },
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
     apple: "/favicon.svg",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#000000",
 };
 
 export default function RootLayout({
@@ -43,13 +55,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${gilroy.variable} antialiased bg-black text-white`}
-      >
-        <Navigation />
-        <div className="pt-14">
-          {children}
-        </div>
+      <body className={`${gilroy.variable} ${geistSans.variable} ${geistMono.variable} antialiased bg-black text-white min-h-screen`}>
+        <PageBackground>
+          <Suspense fallback={null}>
+            <Navigation />
+          </Suspense>
+          <main className="pt-14">
+            <Suspense fallback={null}>
+              {children}
+            </Suspense>
+          </main>
+        </PageBackground>
       </body>
     </html>
   );
