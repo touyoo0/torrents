@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from 'react';
 import { Geist, Geist_Mono } from "next/font/google";
 import localFont from 'next/font/local';
 import Navigation from "./components/Navigation";
@@ -56,9 +57,13 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${gilroy.variable} ${geistSans.variable} ${geistMono.variable} antialiased bg-black text-white min-h-screen`}>
         <PageBackground>
-          <Navigation />
+          <Suspense fallback={null}>
+            <Navigation />
+          </Suspense>
           <main className="pt-14">
-            {children}
+            <Suspense fallback={null}>
+              {children}
+            </Suspense>
           </main>
         </PageBackground>
       </body>
