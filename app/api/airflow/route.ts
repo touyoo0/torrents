@@ -54,10 +54,18 @@ export async function POST(req: NextRequest) {
 
     console.log(`Triggering DAG: ${dagId} with params:`, params);
     
-    // Airflow API configuration
-    const airflowUrl = 'http://192.168.1.31:8081/api/v1';
-    const username = 'touyoo';
-    const password = 'touyoo';
+    // Airflow API configuration via env vars
+    const airflowUrl = process.env.AIRFLOW_API_URL;
+    const username = process.env.AIRFLOW_USERNAME;
+    const password = process.env.AIRFLOW_PASSWORD;
+
+    if (!airflowUrl || !username || !password) {
+      console.error('Missing Airflow env vars. Required: AIRFLOW_API_URL, AIRFLOW_USERNAME, AIRFLOW_PASSWORD');
+      return NextResponse.json(
+        { error: 'Airflow configuration missing on server (env vars)' },
+        { status: 500 }
+      );
+    }
     
     // Create request body (inject user if resolved)
     const requestBody = {
@@ -66,7 +74,8 @@ export async function POST(req: NextRequest) {
     };
     
     // API endpoint URL
-    const fullUrl = `${airflowUrl}/dags/${dagId}/dagRuns`;
+    const base = airflowUrl.endsWith('/') ? airflowUrl.slice(0, -1) : airflowUrl;
+    const fullUrl = `${base}/dags/${dagId}/dagRuns`;
     console.log(`API URL: ${fullUrl}`);
     
     // Make the API call

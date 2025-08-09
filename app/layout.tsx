@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import localFont from 'next/font/local';
 import Navigation from "./components/Navigation";
@@ -31,7 +31,6 @@ export const metadata: Metadata = {
   title: "Torrents",
   description: "Gestion et téléchargement de torrents",
   manifest: "/manifest.webmanifest",
-  themeColor: "#000000",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -42,6 +41,10 @@ export const metadata: Metadata = {
     shortcut: "/favicon.svg",
     apple: "/favicon.svg",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#000000",
 };
 
 export default function RootLayout({

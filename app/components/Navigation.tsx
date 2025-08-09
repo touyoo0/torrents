@@ -146,13 +146,19 @@ export default function Navigation() {
           )}
         </div>
 
-        {/* Bouton menu mobile */}
+        {/* Bouton menu mobile (avec pastille nouveautés) */}
         <button 
-          className="md:hidden text-white focus:outline-none" 
+          className="relative md:hidden text-white focus:outline-none"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           aria-label="Toggle menu"
         >
           {isMenuOpen ? <FiX size={24} /> : <FiMenu size={24} />}
+          {/* Pastille visible même menu replié */}
+          {!isMenuOpen && typeof nouveautesCount === 'number' && nouveautesCount > 0 && (
+            <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-semibold rounded-full bg-blue-600 text-white">
+              {nouveautesCount > 99 ? '99+' : nouveautesCount}
+            </span>
+          )}
         </button>
 
         {/* Menu mobile */}
