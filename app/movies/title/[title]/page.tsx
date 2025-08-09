@@ -147,6 +147,18 @@ export default function MovieTitlePage() {
       
       // Convert torrentId to string to ensure proper JSON serialization
       const torrentIdStr = torrentId.toString();
+
+      // Resolve current user from IP
+      let currentUser: string | null = null;
+      try {
+        const who = await fetch('/api/whoami');
+        if (who.ok) {
+          const data = await who.json();
+          if (data && data.user && typeof data.user.username === 'string') {
+            currentUser = data.user.username;
+          }
+        }
+      } catch {}
       
       const response = await fetch('/api/airflow', {
         method: 'POST',
@@ -158,7 +170,8 @@ export default function MovieTitlePage() {
           params: {
             torrent_id: torrentIdStr,
             category: category,
-            title: title
+            title: title,
+            ...(currentUser ? { user: currentUser } : {})
           }
         })
       });

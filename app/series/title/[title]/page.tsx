@@ -170,21 +170,37 @@ export default function SerieTitlePage() {
   // Trigger Airflow DAG for a given torrent
   const triggerAirflowDownload = async (torrentId: number, category: string) => {
     try {
+      // Mark this torrent as loading and show immediate feedback
       setIsLoading(prev => ({ ...prev, [torrentId]: true }));
       setDownloadStatus(prev => ({ ...prev, [torrentId]: '⌛ Téléchargement' }));
       setStatusMessage(prev => ({ ...prev, [torrentId]: 'Démarrage...' }));
 
       const torrentIdStr = torrentId.toString();
 
+      // Resolve current user from IP
+      let currentUser: string | null = null;
+      try {
+        const who = await fetch('/api/whoami');
+        if (who.ok) {
+          const data = await who.json();
+          if (data && data.user && typeof data.user.username === 'string') {
+            currentUser = data.user.username;
+          }
+        }
+      } catch {}
+
       const response = await fetch('/api/airflow', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           dagId: 'torrents_download',
           params: {
             torrent_id: torrentIdStr,
             category: category,
-            title: title
+            title: title,
+            ...(currentUser ? { user: currentUser } : {})
           }
         })
       });

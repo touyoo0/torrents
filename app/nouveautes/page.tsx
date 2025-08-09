@@ -186,20 +186,20 @@ export default function NouveautesPage() {
               <div className="mt-2 flex items-center justify-center gap-3">
                 <button
                   onClick={() => { setSelectedTab('films'); setCurrentPage(1); }}
-                  className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                     selectedTab === 'films'
-                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white border-transparent shadow-lg shadow-blue-500/20'
-                      : 'border-white/20 text-white/80 hover:bg-white/10'
+                      ? 'relative overflow-hidden text-white border-0 bg-[linear-gradient(90deg,_#6366f1_0%,_#a855f7_50%,_#ec4899_100%)]'
+                      : 'border border-white/20 text-white/80 hover:bg-white/10'
                   }`}
                 >
                   Films
                 </button>
                 <button
                   onClick={() => { setSelectedTab('series'); setCurrentPage(1); }}
-                  className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                     selectedTab === 'series'
-                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white border-transparent shadow-lg shadow-blue-500/20'
-                      : 'border-white/20 text-white/80 hover:bg-white/10'
+                      ? 'relative overflow-hidden text-white border-0 bg-[linear-gradient(90deg,_#6366f1_0%,_#a855f7_50%,_#ec4899_100%)]'
+                      : 'border border-white/20 text-white/80 hover:bg-white/10'
                   }`}
                 >
                   Séries

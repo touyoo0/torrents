@@ -1,6 +1,4 @@
 import { NextRequest } from 'next/server';
-import fs from 'fs/promises';
-import path from 'path';
 import pool from '@/lib/db';
 import { RowDataPacket } from 'mysql2';
 
@@ -18,9 +16,10 @@ interface TorrentRow extends RowDataPacket {
   repertoire?: string | null;
 }
 
-type UsersConfig = {
-  users: Record<string, { team: string; ip_addresses: string[] }>;
-};
+// users.json replaced by DB table `users` with columns:
+// - ip_adresses (varchar) possibly JSON array, CSV, or single IP
+// - username (string)
+// - team (string, optional)
 
 function normalizeIp(ip: string | null | undefined): string | null {
   if (!ip) return null;
@@ -42,21 +41,23 @@ function getClientIp(req: NextRequest): string | null {
 async function resolveUserFromIp(ip: string | null): Promise<{ username: string; team: string } | null> {
   if (!ip) return null;
   try {
-    const usersPath = path.join(process.cwd(), 'src', 'config', 'users.json');
-    const raw = await fs.readFile(usersPath, 'utf8');
-    const cfg = JSON.parse(raw) as UsersConfig;
-    const norm = normalizeIp(ip);
-    for (const [username, meta] of Object.entries(cfg.users || {})) {
-      const list = Array.isArray(meta.ip_addresses) ? meta.ip_addresses : [];
-      // Normalize each stored IP for robust comparison
-      const match = list.some(v => normalizeIp(v) === norm);
-      if (match) {
-        return { username, team: meta.team };
-      }
+    const query = `
+      SELECT name AS username, team
+      FROM users
+      WHERE FIND_IN_SET(?, ip_adresses) OR ip_adresses = ?
+      ORDER BY last_activity DESC
+      LIMIT 1
+    `;
+    const [rows] = await pool.query<RowDataPacket[]>(query, [ip, ip]);
+    if ((rows as any).length > 0) {
+      const r: any = (rows as any)[0];
+      const username = typeof r.username === 'string' ? r.username : null;
+      const team = typeof r.team === 'string' ? r.team : '';
+      if (username) return { username, team };
     }
     return null;
   } catch (e) {
-    console.error('users.json read/parse error:', e);
+    console.error('Unable to resolve user from users table', e);
     return null;
   }
 }

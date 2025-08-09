@@ -164,26 +164,42 @@ function TelechargesPageInner() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-950 via-slate-900 to-gray-950 text-white p-8">
       <div className="container mx-auto py-10 px-4">
-        <h1 className="text-3xl font-bold text-white mb-8">Téléchargements</h1>
+        <div className="text-center mb-10 sm:mb-12">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 pb-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 font-display">
+            Téléchargements
+          </h1>
+        </div>
         <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
             <span className="text-gray-300">Filtrer :</span>
             <div className="flex gap-2">
               <button
-                className={`px-4 py-2 rounded font-semibold transition-colors ${categorie === "all" ? "bg-blue-600 text-white" : "bg-slate-700 text-gray-200 hover:bg-blue-900"}`}
-                onClick={() => setCategorie("all")}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                  categorie === 'all'
+                    ? 'relative overflow-hidden text-white border-0 bg-[linear-gradient(90deg,_#6366f1_0%,_#a855f7_50%,_#ec4899_100%)]'
+                    : 'border border-white/20 text-white/80 hover:bg-white/10'
+                }`}
+                onClick={() => setCategorie('all')}
               >
                 Tous
               </button>
               <button
-                className={`px-4 py-2 rounded font-semibold transition-colors ${categorie === "films" ? "bg-blue-600 text-white" : "bg-slate-700 text-gray-200 hover:bg-blue-900"}`}
-                onClick={() => setCategorie("films")}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                  categorie === 'films'
+                    ? 'relative overflow-hidden text-white border-0 bg-[linear-gradient(90deg,_#6366f1_0%,_#a855f7_50%,_#ec4899_100%)]'
+                    : 'border border-white/20 text-white/80 hover:bg-white/10'
+                }`}
+                onClick={() => setCategorie('films')}
               >
                 Films
               </button>
               <button
-                className={`px-4 py-2 rounded font-semibold transition-colors ${categorie === "serie" ? "bg-blue-600 text-white" : "bg-slate-700 text-gray-200 hover:bg-blue-900"}`}
-                onClick={() => setCategorie("serie")}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                  categorie === 'serie'
+                    ? 'relative overflow-hidden text-white border-0 bg-[linear-gradient(90deg,_#6366f1_0%,_#a855f7_50%,_#ec4899_100%)]'
+                    : 'border border-white/20 text-white/80 hover:bg-white/10'
+                }`}
+                onClick={() => setCategorie('serie')}
               >
                 Séries
               </button>
