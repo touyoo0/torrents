@@ -107,6 +107,9 @@ export default function Navigation() {
             <NavLink href="/series" active={isActive('/series')}>
               Séries
             </NavLink>
+            <NavLink href="/books" active={isActive('/books')}>
+              Livres
+            </NavLink>
             <NavLink href="/telechargements" active={isActive('/telechargements')}>
               Téléchargements
             </NavLink>
@@ -184,6 +187,9 @@ export default function Navigation() {
                 </MobileNavLink>
                 <MobileNavLink href="/series" active={isActive('/series')} onClick={() => setIsMenuOpen(false)}>
                   Séries
+                </MobileNavLink>
+                <MobileNavLink href="/books" active={isActive('/books')} onClick={() => setIsMenuOpen(false)}>
+                  Livres
                 </MobileNavLink>
                 <MobileNavLink href="/telechargements" active={isActive('/telechargements')} onClick={() => setIsMenuOpen(false)}>
                   Téléchargements
