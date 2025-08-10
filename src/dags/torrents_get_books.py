@@ -257,11 +257,10 @@ def E_add_torrents(**kwargs):
                     except Exception:
                         # En dernier recours, laisser NULL
                         created_at = None
-            statut = '➕ Ajouter'
             category = 'Livres'
             
-            cursor.execute("INSERT INTO ygg_torrents_books (id,name,size,created_at,statut,categorie) VALUES (%s, %s, %s, %s, %s, %s)", 
-            (id, name, size, created_at, statut, category))
+            cursor.execute("INSERT INTO ygg_torrents_books (id,name,size,created_at,categorie) VALUES (%s, %s, %s, %s, %s)", 
+            (id, name, size, created_at, category))
             conn.commit()
             logger.info(f"Torrent ajouté avec succès: {name}")
             inserted += 1

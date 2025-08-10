@@ -169,8 +169,6 @@ export default function MovieTitlePage() {
           dagId: 'torrents_download',
           params: {
             torrent_id: torrentIdStr,
-            category: category,
-            title: title,
             ...(currentUser ? { user: currentUser } : {})
           }
         })

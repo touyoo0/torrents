@@ -10,8 +10,6 @@ interface Book {
   name: string;
   size?: string | null;
   created_at?: string | null;
-  username?: string | null;
-  repertoire?: string | null;
 }
 
 // Animations (alignées avec Films/Séries)
@@ -88,20 +86,36 @@ export default function BooksPage() {
     fetchBooks();
   };
 
-  const triggerDownload = async (torrentId: number) => {
+  const triggerDownload = async (torrentId: number, title: string) => {
     setDownloading((m) => ({ ...m, [torrentId]: true }));
     try {
+      // Resolve current user from IP (if available)
+      let currentUser: string | null = null;
+      try {
+        const who = await fetch('/api/whoami');
+        if (who.ok) {
+          const data = await who.json();
+          if (data && data.user && typeof data.user.username === 'string') {
+            currentUser = data.user.username;
+          }
+        }
+      } catch {}
+
       const res = await fetch('/api/airflow', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           dagId: 'torrents_download',
-          params: { torrent_id: torrentId, categorie: 'Livres' },
+          params: {
+            torrent_id: torrentId,
+            category: 'Livres',
+            title,
+            ...(currentUser ? { user: currentUser } : {})
+          },
         }),
       });
       if (!res.ok) throw new Error('Airflow error');
-      // Redirect user to downloads page to track status
-      window.location.href = '/telechargements';
+      alert('OK');
     } catch (e) {
       console.error(e);
       alert("Échec du déclenchement du téléchargement via Airflow");
@@ -196,7 +210,7 @@ export default function BooksPage() {
                   </div>
                   <div className="sm:col-span-2 text-left sm:text-right">
                     <button
-                      onClick={() => triggerDownload(b.id)}
+                      onClick={() => triggerDownload(b.id, b.name)}
                       disabled={!!downloading[b.id]}
                       className={`w-full sm:w-auto inline-flex items-center justify-center rounded-md px-3 py-1.5 text-xs font-medium ${downloading[b.id] ? 'bg-gray-600 cursor-not-allowed' : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700'}`}
                     >

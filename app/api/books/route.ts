@@ -7,8 +7,6 @@ interface BookRow extends RowDataPacket {
   name: string;
   size: string | null;
   created_at: string | null;
-  username: string | null;
-  repertoire: string | null;
 }
 
 interface CountResult extends RowDataPacket {
@@ -38,7 +36,7 @@ export async function GET(req: NextRequest) {
 
     // data page
     const [rows] = await pool.query<BookRow[]>(
-      `SELECT id, name, size, created_at, username, repertoire
+      `SELECT id, name, size, created_at
        FROM ygg_torrents_books
        ${where}
        ORDER BY created_at DESC
