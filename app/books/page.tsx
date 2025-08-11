@@ -48,6 +48,7 @@ export default function BooksPage() {
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total]);
   const [downloading, setDownloading] = useState<Record<number, boolean>>({});
+  const [toast, setToast] = useState<{open: boolean; kind: 'success' | 'error'; text: string}>({ open: false, kind: 'success', text: '' });
 
   const fetchBooks = async () => {
     setLoading(true);
@@ -115,10 +116,13 @@ export default function BooksPage() {
         }),
       });
       if (!res.ok) throw new Error('Airflow error');
-      alert('OK');
+      // Joli toast de succès
+      setToast({ open: true, kind: 'success', text: `Téléchargement lancé pour “${title}”` });
+      setTimeout(() => setToast((t) => ({ ...t, open: false })), 3000);
     } catch (e) {
       console.error(e);
-      alert("Échec du déclenchement du téléchargement via Airflow");
+      setToast({ open: true, kind: 'error', text: "Échec du déclenchement du téléchargement via Airflow" });
+      setTimeout(() => setToast((t) => ({ ...t, open: false })), 3500);
     } finally {
       setDownloading((m) => ({ ...m, [torrentId]: false }));
     }
@@ -126,6 +130,49 @@ export default function BooksPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-950 via-slate-900 to-gray-950 text-white px-4 py-12">
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast.open && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className={`fixed top-4 right-4 z-50 max-w-md w-[92vw] sm:w-auto shadow-lg rounded-xl border backdrop-blur-md px-4 py-3 flex items-start gap-3 ${
+              toast.kind === 'success'
+                ? 'bg-gradient-to-r from-emerald-500/10 to-emerald-400/10 border-emerald-500/30'
+                : 'bg-gradient-to-r from-red-500/10 to-red-400/10 border-red-500/30'
+            }`}
+            role="status"
+            aria-live="polite"
+          >
+            <div className={`mt-0.5 h-5 w-5 flex-shrink-0 rounded-full flex items-center justify-center ${toast.kind === 'success' ? 'bg-emerald-600/80' : 'bg-red-600/80'}`}>
+              {toast.kind === 'success' ? (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5 text-white">
+                  <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.414l-7.5 7.5a1 1 0 01-1.414 0l-3-3a1 1 0 011.414-1.414l2.293 2.293 6.793-6.793a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5 text-white">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1-5a1 1 0 112 0 1 1 0 01-2 0zm1-8a1 1 0 00-1 1v5a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              )}
+            </div>
+            <div className="text-sm leading-5">
+              <div className="font-semibold tracking-wide">
+                {toast.kind === 'success' ? 'Téléchargement lancé' : 'Erreur'}
+              </div>
+              <div className="text-gray-300">{toast.text}</div>
+            </div>
+            <button
+              onClick={() => setToast((t) => ({ ...t, open: false }))}
+              className="ml-auto text-gray-300 hover:text-white transition-colors"
+              aria-label="Fermer"
+            >
+              ×
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
