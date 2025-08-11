@@ -89,7 +89,7 @@ export default function Home() {
         </h1>
       </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl">
         <motion.div
           initial={{ opacity: 0, x: -30 }}
           animate={{ opacity: 1, x: 0 }}
@@ -119,6 +119,23 @@ export default function Home() {
               <GifBackground type="series" />
               <div className="relative z-10">
                 <h2 className="text-3xl font-bold mb-2">Séries</h2>
+              </div>
+            </div>
+          </Link>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.6 }}
+          whileHover={{ scale: 1.03 }}
+          className="w-full"
+        >
+          <Link href="/books" className="block w-full">
+            <div className="bg-gradient-to-br from-emerald-600 to-emerald-900 hover:from-emerald-500 hover:to-emerald-800 text-white rounded-xl p-8 h-48 flex flex-col items-center justify-center shadow-lg transition-all duration-300 border border-emerald-700 hover:border-emerald-500 hover:shadow-emerald-900/20 hover:shadow-xl relative overflow-hidden">
+              <GifBackground type="books" />
+              <div className="relative z-10">
+                <h2 className="text-3xl font-bold mb-2">Livres</h2>
               </div>
             </div>
           </Link>

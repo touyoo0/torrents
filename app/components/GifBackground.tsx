@@ -4,16 +4,24 @@ import React from 'react';
 import Image from 'next/image';
 
 interface GifBackgroundProps {
-  type: 'movies' | 'series';
+  type: 'movies' | 'series' | 'books';
 }
 
 export default function GifBackground({ type }: GifBackgroundProps) {
   // URLs des GIFs pour les films et séries
-  const gifUrls = {
+  const gifUrls: Record<GifBackgroundProps['type'], string> = {
     // Animation film fournie par l'utilisateur
     movies: "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExanQ5NDEwdTl6YWE2Y21vbmVtc2xxb25memFoNHRycG8xYm5tY2JxMSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/vBjLa5DQwwxbi/giphy.gif", 
     // Animation TV fournie par l'utilisateur
-    series: "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExaTdydXN3MDR4MWs4ZTRqNWQ3NWcxYTAyaWd1YmJsbXM4Y3pta2dlcyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oEjI1erPMTMBFmNHi/giphy.gif"
+    series: "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExaTdydXN3MDR4MWs4ZTRqNWQ3NWcxYTAyaWd1YmJsbXM4Y3pta2dlcyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oEjI1erPMTMBFmNHi/giphy.gif",
+    // Books (cat with book)
+    books: "https://media.giphy.com/media/1TgECF0mNVirC/giphy.gif"
+  };
+
+  const gradientClass: Record<GifBackgroundProps['type'], string> = {
+    movies: 'bg-gradient-to-br from-blue-900 to-blue-700',
+    series: 'bg-gradient-to-br from-purple-900 to-purple-700',
+    books: 'bg-gradient-to-br from-emerald-900 to-emerald-700',
   };
 
   return (
@@ -31,7 +39,7 @@ export default function GifBackground({ type }: GifBackgroundProps) {
       />
       {/* Overlay pour améliorer la lisibilité du texte */}
       <div 
-        className={`absolute inset-0 ${type === 'movies' ? 'bg-gradient-to-br from-blue-900 to-blue-700' : 'bg-gradient-to-br from-purple-900 to-purple-700'} opacity-70`}
+        className={`absolute inset-0 ${gradientClass[type]} opacity-70`}
       />
       {/* Effet de scintillement */}
       <div 

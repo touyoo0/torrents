@@ -91,6 +91,7 @@ def B_download_torrent(**kwargs):
     qb = ti.xcom_pull(key='qb')
     torrent_id = ti.xcom_pull(key='torrent_id')
     category = ti.xcom_pull(key='category')
+    user = ti.xcom_pull(key='user')
     title = ti.xcom_pull(key='title')
 
     qb_host = json.loads(qb)["QB_HOST"]
@@ -101,11 +102,13 @@ def B_download_torrent(**kwargs):
     if category == "Série":
         qb_savepath = qb_savepath + '/Séries/' + title
         qb_category = "Series-DAG"
+    elif category == "Livres":
+        qb_savepath = qb_savepath + '/Livres/'
+        qb_category = "Livres-DAG"
     else:
         qb_savepath = qb_savepath + '/Films/'
         qb_category = "Films-DAG"
     
-
     ygg_base_url = json.loads(ygg)["BASE_URL"]
     ygg_passkey = json.loads(ygg)["PASSKEY"]
     
@@ -128,7 +131,8 @@ def B_download_torrent(**kwargs):
     # Préparation des données pour l'ajout
     data = {
         'savepath': qb_savepath,
-        'category': qb_category
+        'category': qb_category,
+        'tags': user
     }
     
     # Ajouter le torrent modifié
@@ -148,10 +152,15 @@ def C_update_database(**kwargs):
     db = ti.xcom_pull(key='db')
     torrent_id = ti.xcom_pull(key='torrent_id')
     user = ti.xcom_pull(key='user')
+    category = ti.xcom_pull(key='category')
     skip_next_tasks = ti.xcom_pull(key='skip_next_tasks')
     if skip_next_tasks:
         logger.info("Étape ignorée: aucun torrent téléchargé")
         raise AirflowSkipException("Aucun torrent téléchargé")
+    
+    if category == "Livres":
+        logger.info("Étape ignorée: torrent livre")
+        raise AirflowSkipException("Aucun torrent livre à mettre à jour")
 
     try:
         conn = pymysql.connect(
