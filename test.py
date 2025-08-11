@@ -1,53 +1,22 @@
-import requests
-import json
-import logging
+import smtplib
+from email.mime.text import MIMEText
 
-logger = logging.getLogger("torrents_get")
+# Configuration
+smtp_server = "smtp.gmail.com"
+smtp_port = 587
+email = "touyoo3474@gmail.com"
+password = "kpnmdavgjizipysh"  # mot de passe d'application, pas ton mot de passe Gmail
 
-def test():
-    ygg = ""
-    rss_url = "https://rss.dathomir.fr/rss"
-    passkey = "hVZRK43ANPcOFZnMqEmSSuMHPAqy4N0x"
+# Création du message
+msg = MIMEText("Bonjour, ceci est un test SMTP via Gmail.")
+msg["Subject"] = "Test SMTP"
+msg["From"] = email
+msg["To"] = "touyoo3474@gmail.com"
 
-    torrents_list = []
+# Envoi
+with smtplib.SMTP(smtp_server, smtp_port) as server:
+    server.starttls()  # Sécurise la connexion
+    server.login(email, password)
+    server.send_message(msg)
 
-    url = rss_url + "?id=2140&passkey=" + passkey
-    print(url)
-    response = requests.get(url)
-    if response.status_code != 200:
-        logger.error(f"Erreur lors de la récupération des données sur l'api {url}: {response.status_code}")
-        return 0
-    # Parse RSS XML et extraire title, pubDate, enclosure url
-    try:
-        from xml.etree import ElementTree as ET
-        root = ET.fromstring(response.content)
-        items = root.findall('.//item')
-        for it in items:
-            title_el = it.find('title')
-            pub_el = it.find('pubDate')
-            encl_el = it.find('enclosure')
-
-            title = (title_el.text or '').strip() if title_el is not None else None
-            pubdate = (pub_el.text or '').strip() if pub_el is not None else None
-            enclosure_url = encl_el.get('url') if encl_el is not None else None
-            size = round(int(encl_el.get('length')) / (1024**2), 2) if encl_el is not None else None
-
-            print(f"- {title} | {pubdate} | {enclosure_url} | {size}")  
-
-            logger.info(f"- {title} | {pubdate} | {enclosure_url} | {size}")
-            torrents_list.append({
-                'title': title,
-                'pubDate': pubdate,
-                'enclosure_url': enclosure_url,
-                'size': size
-            })
-    except Exception as e:
-        logger.error(f"Erreur de parsing RSS: {e}")
-        return 0
-
-    #ti.xcom_push(key='torrents_list', value=torrents_list)
-    return len(torrents_list)
-
-if __name__ == '__main__':
-    test()
-    
+print("E-mail envoyé avec succès ✅")
