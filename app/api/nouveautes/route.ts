@@ -109,20 +109,26 @@ export async function GET(req: NextRequest) {
       whereClause += " AND categorie = 'Série'";
     }
 
-    // For series: only show truly new series (i.e., titles where an episode 1 exists in the filtered set)
-    const havingClause = categorie === 'series' ? " HAVING SUM(episode = '1') > 0" : '';
-
     if (countOnly) {
-      const countSql = categorie === 'series'
-        ? `SELECT COUNT(*) as total FROM (
-             SELECT title
-             FROM ygg_torrents_new
-             ${whereClause}
-             GROUP BY title
-             ${havingClause}
-           ) t`
-        : `SELECT COUNT(DISTINCT title) as total FROM ygg_torrents_new ${whereClause}`;
-      const [countResult] = await pool.query<CountResult[]>(countSql, params);
+      // For series: only include titles that did NOT exist before lastActivity (cutoff)
+      const [countResult] = await pool.query<CountResult[]>(
+        categorie === 'series'
+          ? `SELECT COUNT(*) as total FROM (
+               SELECT t.title
+               FROM ygg_torrents_new t
+               WHERE t.created_at > ?
+                 AND t.release_date IS NOT NULL AND t.release_date <> ''
+                 AND DATEDIFF(CURDATE(), DATE(t.release_date)) < 365
+                 AND t.categorie = 'Série'
+                 AND NOT EXISTS (
+                   SELECT 1 FROM ygg_torrents_new tp
+                   WHERE tp.title = t.title AND tp.created_at <= ?
+                 )
+               GROUP BY t.title
+             ) as x`
+          : `SELECT COUNT(DISTINCT title) as total FROM ygg_torrents_new ${whereClause}`,
+        categorie === 'series' ? [cutoff, cutoff] : params
+      );
       return new Response(JSON.stringify({ total: countResult[0]?.total || 0 }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -131,14 +137,27 @@ export async function GET(req: NextRequest) {
 
     // Get sorted IDs per distinct title by most recent created_at
     const [sortedIds] = await pool.query<RowDataPacket[]>(
-      `SELECT MIN(id) as id
-       FROM ygg_torrents_new
-       ${whereClause}
-       GROUP BY title
-       ${havingClause}
-       ORDER BY MAX(created_at) DESC
-       LIMIT ? OFFSET ?`,
-      [...params, limit, offset]
+      categorie === 'series'
+        ? `SELECT MIN(t.id) as id
+           FROM ygg_torrents_new t
+           WHERE t.created_at > ?
+             AND t.release_date IS NOT NULL AND t.release_date <> ''
+             AND DATEDIFF(CURDATE(), DATE(t.release_date)) < 365
+             AND t.categorie = 'Série'
+             AND NOT EXISTS (
+               SELECT 1 FROM ygg_torrents_new tp
+               WHERE tp.title = t.title AND tp.created_at <= ?
+             )
+           GROUP BY t.title
+           ORDER BY MAX(t.created_at) DESC
+           LIMIT ? OFFSET ?`
+        : `SELECT MIN(id) as id
+           FROM ygg_torrents_new
+           ${whereClause}
+           GROUP BY title
+           ORDER BY MAX(created_at) DESC
+           LIMIT ? OFFSET ?`,
+      categorie === 'series' ? [cutoff, cutoff, limit, offset] : [...params, limit, offset]
     ) as [RowDataPacket[], FieldPacket[]];
 
     if (sortedIds.length === 0) {
@@ -170,16 +189,24 @@ export async function GET(req: NextRequest) {
     );
 
     // Also compute total for pagination
-    const countSql = categorie === 'series'
-      ? `SELECT COUNT(*) as total FROM (
-           SELECT title
-           FROM ygg_torrents_new
-           ${whereClause}
-           GROUP BY title
-           ${havingClause}
-         ) t`
-      : `SELECT COUNT(DISTINCT title) as total FROM ygg_torrents_new ${whereClause}`;
-    const [countResult] = await pool.query<CountResult[]>(countSql, params);
+    const [countResult] = await pool.query<CountResult[]>(
+      categorie === 'series'
+        ? `SELECT COUNT(*) as total FROM (
+             SELECT t.title
+             FROM ygg_torrents_new t
+             WHERE t.created_at > ?
+               AND t.release_date IS NOT NULL AND t.release_date <> ''
+               AND DATEDIFF(CURDATE(), DATE(t.release_date)) < 365
+               AND t.categorie = 'Série'
+               AND NOT EXISTS (
+                 SELECT 1 FROM ygg_torrents_new tp
+                 WHERE tp.title = t.title AND tp.created_at <= ?
+               )
+             GROUP BY t.title
+           ) as x`
+        : `SELECT COUNT(DISTINCT title) as total FROM ygg_torrents_new ${whereClause}`,
+      categorie === 'series' ? [cutoff, cutoff] : params
+    );
 
     return new Response(JSON.stringify({ items: rows, total: countResult[0]?.total || 0 }), {
       status: 200,
