@@ -98,8 +98,9 @@ export async function GET(req: NextRequest) {
     const fallbackDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const cutoff = toMysqlDateTime(lastActivity || fallbackDate);
 
-    // where clause: created_at > cutoff, include all categories (Movies + Series)
-    let whereClause = 'WHERE created_at > ?';
+    // where clause: created_at > cutoff AND release_date within last 365 days, include all categories (Movies + Series)
+    // Note: guard against empty-string release_date values
+    let whereClause = "WHERE created_at > ? AND release_date IS NOT NULL AND release_date <> '' AND DATEDIFF(CURDATE(), DATE(release_date)) < 365";
     const params: any[] = [cutoff];
 
     if (categorie === 'movies') {
@@ -108,11 +109,20 @@ export async function GET(req: NextRequest) {
       whereClause += " AND categorie = 'Série'";
     }
 
+    // For series: only show truly new series (i.e., titles where an episode 1 exists in the filtered set)
+    const havingClause = categorie === 'series' ? " HAVING SUM(episode = '1') > 0" : '';
+
     if (countOnly) {
-      const [countResult] = await pool.query<CountResult[]>(
-        `SELECT COUNT(DISTINCT title) as total FROM ygg_torrents_new ${whereClause}`,
-        params
-      );
+      const countSql = categorie === 'series'
+        ? `SELECT COUNT(*) as total FROM (
+             SELECT title
+             FROM ygg_torrents_new
+             ${whereClause}
+             GROUP BY title
+             ${havingClause}
+           ) t`
+        : `SELECT COUNT(DISTINCT title) as total FROM ygg_torrents_new ${whereClause}`;
+      const [countResult] = await pool.query<CountResult[]>(countSql, params);
       return new Response(JSON.stringify({ total: countResult[0]?.total || 0 }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -125,6 +135,7 @@ export async function GET(req: NextRequest) {
        FROM ygg_torrents_new
        ${whereClause}
        GROUP BY title
+       ${havingClause}
        ORDER BY MAX(created_at) DESC
        LIMIT ? OFFSET ?`,
       [...params, limit, offset]
@@ -159,10 +170,16 @@ export async function GET(req: NextRequest) {
     );
 
     // Also compute total for pagination
-    const [countResult] = await pool.query<CountResult[]>(
-      `SELECT COUNT(DISTINCT title) as total FROM ygg_torrents_new ${whereClause}`,
-      params
-    );
+    const countSql = categorie === 'series'
+      ? `SELECT COUNT(*) as total FROM (
+           SELECT title
+           FROM ygg_torrents_new
+           ${whereClause}
+           GROUP BY title
+           ${havingClause}
+         ) t`
+      : `SELECT COUNT(DISTINCT title) as total FROM ygg_torrents_new ${whereClause}`;
+    const [countResult] = await pool.query<CountResult[]>(countSql, params);
 
     return new Response(JSON.stringify({ items: rows, total: countResult[0]?.total || 0 }), {
       status: 200,
