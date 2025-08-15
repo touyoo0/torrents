@@ -192,7 +192,7 @@ export default function BooksPage() {
                   onChange={(e) => setQ(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), setPage(1), fetchBooks())}
                   placeholder="Rechercher un livre..."
-                  className="w-full appearance-none bg-slate-800/80 border border-slate-700/60 text-white text-base md:text-lg rounded-xl px-3 py-2 sm:px-4 sm:py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full appearance-none bg-slate-800/80 border border-slate-700/60 text-white text-base rounded-xl px-3 py-2 sm:px-4 sm:py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   inputMode="search"
                 />
               </div>
