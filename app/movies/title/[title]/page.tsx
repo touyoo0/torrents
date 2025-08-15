@@ -89,6 +89,58 @@ export default function MovieTitlePage() {
   const [loading, setLoading] = useState(true);
   // Indique si les statuts sont en cours de récupération (pour l'affichage des boutons)
   const [statusesLoading, setStatusesLoading] = useState<boolean>(true);
+  // Recommandations
+  const [recs, setRecs] = useState<Movie[]>([]);
+  const [recsLoading, setRecsLoading] = useState<boolean>(true);
+  const recsContainerRef = React.useRef<HTMLDivElement | null>(null);
+  const [autoScroll, setAutoScroll] = useState<boolean>(true);
+
+  // Auto-scroll des recommandations (pause au survol) avec boucle infinie
+  React.useEffect(() => {
+    const el = recsContainerRef.current;
+    if (!el) return;
+    if (!autoScroll) return;
+    if (!recs || recs.length === 0) return;
+    // Respecte les préférences d'accessibilité
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let rafId: number;
+    // Calcule dynamiquement la largeur d'un set (les 10 premières cartes)
+    const calcSetWidth = () => {
+      const cards = Array.from(el.querySelectorAll('[data-rec-card="true"]')) as HTMLElement[];
+      const count = Math.min(cards.length / 2, 10); // on a 2 sets en rendu
+      let w = 0;
+      for (let i = 0; i < count; i++) {
+        const c = cards[i];
+        if (!c) break;
+        const style = window.getComputedStyle(c);
+        const marginRight = parseFloat(style.marginRight || '0');
+        w += c.offsetWidth + marginRight;
+      }
+      return w;
+    };
+    // reset au changement
+    el.scrollLeft = 0;
+    let setWidth = calcSetWidth();
+    const step = () => {
+      // si resize ou images chargées après coup, recalcule périodiquement
+      if (setWidth === 0 || el.scrollLeft < 2) {
+        setWidth = calcSetWidth();
+      }
+      el.scrollLeft += 1.0;
+      if (setWidth > 0 && el.scrollLeft >= setWidth) {
+        el.scrollLeft -= setWidth;
+      }
+      rafId = window.requestAnimationFrame(step);
+    };
+    rafId = window.requestAnimationFrame(step);
+    return () => window.cancelAnimationFrame(rafId);
+  }, [autoScroll, recs.length]);
+
+  // Réinitialise la position de scroll quand les recos changent
+  React.useEffect(() => {
+    const el = recsContainerRef.current;
+    if (el) el.scrollLeft = 0;
+  }, [recs.length]);
   
   // Fetch movies on component mount
   React.useEffect(() => {
@@ -104,6 +156,29 @@ export default function MovieTitlePage() {
     };
     
     fetchMovies();
+  }, [title]);
+
+  // Fetch recommandations après chargement du titre
+  React.useEffect(() => {
+    const fetchRecs = async () => {
+      if (!title) return;
+      try {
+        setRecsLoading(true);
+        const res = await fetch(`/api/recommendations?title=${encodeURIComponent(title)}&categorie=films&limit=10`);
+        if (!res.ok) {
+          setRecs([]);
+          return;
+        }
+        const data = await res.json();
+        setRecs(Array.isArray(data?.recommendations) ? data.recommendations : []);
+      } catch (e) {
+        console.error('Erreur recommandations:', e);
+        setRecs([]);
+      } finally {
+        setRecsLoading(false);
+      }
+    };
+    fetchRecs();
   }, [title]);
   
   // Après le chargement des films, récupérer les statuts de téléchargement
@@ -368,6 +443,40 @@ export default function MovieTitlePage() {
               ))}
             
             </div>
+          </div>
+
+          {/* Du même genre.. */}
+          <div className="mt-12">
+            <h2 className="text-xl font-semibold mb-4">Du même genre..</h2>
+            {recsLoading ? (
+              <div className="text-slate-400 text-sm">Chargement des recommandations...</div>
+            ) : recs.length === 0 ? (
+              <div className="text-slate-500 text-sm">Aucune recommandation trouvée.</div>
+            ) : (
+              <div
+                ref={recsContainerRef}
+                className="flex overflow-x-hidden pb-2"
+                style={{ scrollBehavior: 'auto' }}
+              >
+                {[...recs.slice(0, 10), ...recs.slice(0, 10)].map((m, idx) => (
+                  <Link
+                    key={`${m.id}-${m.title}-${idx}`}
+                    href={`/movies/title/${encodeURIComponent(m.title)}`}
+                    className="group block flex-shrink-0 w-36 sm:w-40 mr-4"
+                    data-rec-card="true"
+                  >
+                    <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-slate-800">
+                      {m.poster_url ? (
+                        <Image src={m.poster_url} alt={m.title} fill className="object-cover transition-transform duration-300 group-hover:scale-105" />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-4xl text-slate-500">🎬</div>
+                      )}
+                    </div>
+                    <div className="mt-2 text-sm text-white/90 line-clamp-2 text-center">{m.title}</div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

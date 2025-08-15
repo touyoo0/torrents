@@ -300,7 +300,7 @@ export default function MoviesPage() {
                   <select
                     value={selectedGenre}
                     onChange={(e) => setSelectedGenre(e.target.value)}
-                    className="w-full appearance-none bg-slate-800/80 border border-slate-700/60 text-white text-sm md:text-lg rounded-xl px-3 py-2 pr-8 sm:px-4 sm:py-2 md:px-6 md:py-3.5 md:pr-10 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full appearance-none bg-slate-800/80 border border-slate-700/60 text-white text-sm md:text-lg rounded-xl px-3 py-2 pr-8 sm:px-4 sm:py-2 md:px-6 md:py-2 md:pr-10 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   >
                     <option value="all">Tous les genres</option>
                     {allGenres.map((genre) => (
@@ -320,7 +320,7 @@ export default function MoviesPage() {
                   <select
                     value={selectedYear}
                     onChange={(e) => setSelectedYear(e.target.value)}
-                    className="w-full appearance-none bg-slate-800/80 border border-slate-700/60 text-white text-sm md:text-lg rounded-xl px-3 py-2 pr-8 sm:px-4 sm:py-2 md:px-6 md:py-3.5 md:pr-10 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full appearance-none bg-slate-800/80 border border-slate-700/60 text-white text-sm md:text-lg rounded-xl px-3 py-2 pr-8 sm:px-4 sm:py-2 md:px-6 md:py-2 md:pr-10 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   >
                     <option value="all">Toutes les années</option>
                     {yearRanges.map((range) => (
@@ -340,7 +340,7 @@ export default function MoviesPage() {
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
-                    className="w-full appearance-none bg-slate-800/80 border border-slate-700/60 text-white text-sm md:text-lg rounded-xl px-3 py-2 pr-8 sm:px-4 sm:py-2 md:px-6 md:py-3.5 md:pr-10 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full appearance-none bg-slate-800/80 border border-slate-700/60 text-white text-sm md:text-lg rounded-xl px-3 py-2 pr-8 sm:px-4 sm:py-2 md:px-6 md:py-2 md:pr-10 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   >
                     <option value="latest">Plus récents</option>
                     <option value="oldest">Plus anciens</option>
@@ -357,7 +357,7 @@ export default function MoviesPage() {
                 <button
                   onClick={handleSearch}
                   disabled={loading}
-                  className="w-full max-w-[320px] sm:w-auto sm:max-w-none px-4 py-2 md:px-6 md:py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-sm md:text-base font-medium rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                  className="w-full max-w-[320px] sm:w-auto sm:max-w-none px-4 py-2 md:px-6 md:py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-sm md:text-base font-medium rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {loading ? (
                     <>
