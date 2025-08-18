@@ -89,7 +89,7 @@ export default function Home() {
         </h1>
       </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8 w-full max-w-6xl">
         <motion.div
           initial={{ opacity: 0, x: -30 }}
           animate={{ opacity: 1, x: 0 }}
@@ -128,6 +128,23 @@ export default function Home() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.6 }}
+          whileHover={{ scale: 1.03 }}
+          className="w-full"
+        >
+          <Link href="/animes" className="block w-full">
+            <div className="bg-gradient-to-br from-rose-600 to-rose-900 hover:from-rose-500 hover:to-rose-800 text-white rounded-xl p-8 h-48 flex flex-col items-center justify-center shadow-lg transition-all duration-300 border border-rose-700 hover:border-rose-500 hover:shadow-rose-900/20 hover:shadow-xl relative overflow-hidden">
+              <GifBackground type="animes" />
+              <div className="relative z-10">
+                <h2 className="text-3xl font-bold mb-2">Animés</h2>
+              </div>
+            </div>
+          </Link>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.8 }}
           whileHover={{ scale: 1.03 }}
           className="w-full"
         >

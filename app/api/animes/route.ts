@@ -6,7 +6,7 @@ interface CountResult extends RowDataPacket {
   total: number;
 }
 
-interface MovieRow extends RowDataPacket {
+interface AnimeRow extends RowDataPacket {
   id: number;
   title: string;
   count: number;
@@ -21,14 +21,14 @@ interface MovieRow extends RowDataPacket {
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const limit = parseInt(searchParams.get('limit') || '20', 10); // Limite réduite pour améliorer les performances
+    const limit = parseInt(searchParams.get('limit') || '20', 10);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
     const countOnly = searchParams.get('count') === 'true';
-    
-    // Si on demande uniquement le nombre total de films
+
+    // Count only
     if (countOnly) {
       const [countResult] = await pool.query<CountResult[]>(
-        `SELECT COUNT(DISTINCT title) as total FROM ygg_torrents_new WHERE categorie = 'Film' or categorie = 'Film d''animation'`
+        `SELECT COUNT(DISTINCT title) as total FROM ygg_torrents_new WHERE categorie = 'Série d''animation'`
       );
       return new Response(JSON.stringify({ total: countResult[0]?.total || 0 }), {
         status: 200,
@@ -36,63 +36,57 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Récupérer les paramètres de filtrage et de tri
+    // Filters and sorting
     const q = searchParams.get('q') || '';
     const genre = searchParams.get('genre') || '';
     const startYear = searchParams.get('startYear');
     const endYear = searchParams.get('endYear');
     const sort = searchParams.get('sort') || 'latest';
 
-    // Construire la requête avec filtrage
-    let whereClause = "WHERE categorie = 'Film' or categorie = 'Film d''animation'";
+    // Base where clause: only anime series by exact SQL category
+    let whereClause = "WHERE categorie = 'Série d''animation'";
     const params: any[] = [];
 
-    // Ajouter les conditions de filtrage
     if (q) {
-      whereClause += " AND title LIKE ?";
+      whereClause += ' AND title LIKE ?';
       params.push(`%${q}%`);
     }
 
     if (genre) {
-      whereClause += " AND genres LIKE ?";
+      whereClause += ' AND genres LIKE ?';
       params.push(`%${genre}%`);
     }
 
     if (startYear && endYear) {
-      whereClause += " AND year BETWEEN ? AND ?";
+      whereClause += ' AND year BETWEEN ? AND ?';
       params.push(startYear, endYear);
     }
 
-    // Déterminer l'ordre de tri
-    let orderBy = "";
+    let orderBy = '';
     switch (sort) {
       case 'oldest':
-        orderBy = "release_date ASC";
+        orderBy = 'release_date ASC';
         break;
       case 'title_asc':
-        orderBy = "title ASC";
+        orderBy = 'title ASC';
         break;
       case 'title_desc':
-        orderBy = "title DESC";
+        orderBy = 'title DESC';
         break;
       case 'latest':
       default:
-        orderBy = "release_date DESC";
+        orderBy = 'release_date DESC';
         break;
     }
 
-    // D'abord, obtenir le nombre total de résultats pour la pagination
     const [countResult] = await pool.query<CountResult[]>(
       `SELECT COUNT(DISTINCT title) as total FROM ygg_torrents_new ${whereClause}`,
       params
     );
 
-    // Ensuite, obtenir les films avec pagination
-    // D'abord, obtenir les IDs des films triés selon les critères
     const sortField = orderBy.split(' ')[0];
     const sortDirection = orderBy.split(' ')[1] || 'DESC';
-    
-    // Requête pour obtenir les IDs triés
+
     const [sortedIds] = await pool.query<RowDataPacket[]>(
       `SELECT MIN(id) as id 
        FROM ygg_torrents_new 
@@ -102,25 +96,18 @@ export async function GET(req: NextRequest) {
        LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     ) as [RowDataPacket[], FieldPacket[]];
-    
-    // Si aucun résultat, retourner un tableau vide
+
     if (sortedIds.length === 0) {
-      return new Response(JSON.stringify({
-        movies: [],
-        total: countResult[0]?.total || 0
-      }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ animes: [], total: countResult[0]?.total || 0 }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
     }
-    
-    // Ensuite, obtenir les détails complets des films
-    // Créer une liste des IDs pour la clause IN
-    const idList = sortedIds.map(item => (item as any).id);
+
+    const idList = sortedIds.map((item) => (item as any).id);
     const placeholders = idList.map(() => '?').join(',');
-    
-    // Construire la requête avec une jointure pour éviter le GROUP BY problématique
-    const [rows] = await pool.query<MovieRow[]>(
+
+    const [rows] = await pool.query<AnimeRow[]>(
       `SELECT 
         t1.title, 
         t1.id, 
@@ -137,16 +124,13 @@ export async function GET(req: NextRequest) {
       [...idList]
     );
 
-    return new Response(JSON.stringify({
-      movies: rows,
-      total: countResult[0]?.total || 0
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ animes: rows, total: countResult[0]?.total || 0 }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
   } catch (error) {
-    console.error('Error fetching movies:', error);
-    return new Response(JSON.stringify({ error: 'Failed to fetch movies' }), {
+    console.error('Error fetching animes:', error);
+    return new Response(JSON.stringify({ error: 'Failed to fetch animes' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });

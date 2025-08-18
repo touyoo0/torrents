@@ -38,7 +38,7 @@ function TelechargesPageInner() {
   const [torrents, setTorrents] = useState<Torrent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [categorie, setCategorie] = useState<string>("all");
+  const [categorie, setCategorie] = useState<string>("films");
   const [query, setQuery] = useState<string>("");
   const [polling, setPolling] = useState<boolean>(false);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -80,6 +80,7 @@ function TelechargesPageInner() {
         let url = "/api/telechargements";
         if (categorie === "serie") url += "?categorie=serie";
         else if (categorie === "films") url += "?categorie=films";
+        else if (categorie === "animes") url += "?categorie=animes";
         const res = await fetch(url);
         if (!res.ok) throw new Error("Erreur API");
         const data = await res.json();
@@ -93,12 +94,12 @@ function TelechargesPageInner() {
     fetchTorrents();
   }, [categorie]);
 
-  // Initialize from URL params: q and categorie
+  // Initialize from URL params: q and categorie (default to 'films')
   useEffect(() => {
     const q = searchParams.get('q') || '';
     const cat = searchParams.get('categorie');
     if (q && q !== query) setQuery(q);
-    if (cat && (cat === 'all' || cat === 'films' || cat === 'serie') && cat !== categorie) {
+    if (cat && (cat === 'films' || cat === 'serie' || cat === 'animes') && cat !== categorie) {
       setCategorie(cat);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -135,6 +136,7 @@ function TelechargesPageInner() {
           let url = "/api/telechargements";
           if (categorie === "serie") url += "?categorie=serie";
           else if (categorie === "films") url += "?categorie=films";
+          else if (categorie === "animes") url += "?categorie=animes";
           const res = await fetch(url, { cache: 'no-store' });
           if (!res.ok) return;
           const data = await res.json();
@@ -172,19 +174,9 @@ function TelechargesPageInner() {
         <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
             <span className="text-gray-300">Filtrer :</span>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                  categorie === 'all'
-                    ? 'relative overflow-hidden text-white border-0 bg-[linear-gradient(90deg,_#6366f1_0%,_#a855f7_50%,_#ec4899_100%)]'
-                    : 'border border-white/20 text-white/80 hover:bg-white/10'
-                }`}
-                onClick={() => setCategorie('all')}
-              >
-                Tous
-              </button>
-              <button
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                className={`px-3 py-2 sm:px-4 rounded-full text-sm font-medium transition-colors ${
                   categorie === 'films'
                     ? 'relative overflow-hidden text-white border-0 bg-[linear-gradient(90deg,_#6366f1_0%,_#a855f7_50%,_#ec4899_100%)]'
                     : 'border border-white/20 text-white/80 hover:bg-white/10'
@@ -194,7 +186,7 @@ function TelechargesPageInner() {
                 Films
               </button>
               <button
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                className={`px-3 py-2 sm:px-4 rounded-full text-sm font-medium transition-colors ${
                   categorie === 'serie'
                     ? 'relative overflow-hidden text-white border-0 bg-[linear-gradient(90deg,_#6366f1_0%,_#a855f7_50%,_#ec4899_100%)]'
                     : 'border border-white/20 text-white/80 hover:bg-white/10'
@@ -202,6 +194,16 @@ function TelechargesPageInner() {
                 onClick={() => setCategorie('serie')}
               >
                 Séries
+              </button>
+              <button
+                className={`px-3 py-2 sm:px-4 rounded-full text-sm font-medium transition-colors ${
+                  categorie === 'animes'
+                    ? 'relative overflow-hidden text-white border-0 bg-[linear-gradient(90deg,_#6366f1_0%,_#a855f7_50%,_#ec4899_100%)]'
+                    : 'border border-white/20 text-white/80 hover:bg-white/10'
+                }`}
+                onClick={() => setCategorie('animes')}
+              >
+                Animés
               </button>
             </div>
           </div>
@@ -241,7 +243,7 @@ function TelechargesPageInner() {
             >
               <div className="min-w-0 flex-1 break-words">
                 <span className="font-semibold break-words text-white/90">{torrent.title}</span>
-                {torrent.categorie === "Série" && torrent.saison ? (
+                {(torrent.categorie === "Série" || torrent.categorie === "Série d'animation") && torrent.saison ? (
                   <span className="ml-2 text-xs text-purple-300/90 font-mono">
                     S{String(torrent.saison).padStart(2, '0')}
                     {typeof torrent.episode === 'number' && torrent.episode !== null ? `E${String(torrent.episode).padStart(2, '0')}` : ''}

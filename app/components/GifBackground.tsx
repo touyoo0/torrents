@@ -4,7 +4,7 @@ import React from 'react';
 import Image from 'next/image';
 
 interface GifBackgroundProps {
-  type: 'movies' | 'series' | 'books';
+  type: 'movies' | 'series' | 'books' | 'animes';
 }
 
 export default function GifBackground({ type }: GifBackgroundProps) {
@@ -15,13 +15,16 @@ export default function GifBackground({ type }: GifBackgroundProps) {
     // Animation TV fournie par l'utilisateur
     series: "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExaTdydXN3MDR4MWs4ZTRqNWQ3NWcxYTAyaWd1YmJsbXM4Y3pta2dlcyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oEjI1erPMTMBFmNHi/giphy.gif",
     // Books (cat with book)
-    books: "https://media.giphy.com/media/1TgECF0mNVirC/giphy.gif"
+    books: "https://media.giphy.com/media/1TgECF0mNVirC/giphy.gif",
+    // Animes (fourni par l'utilisateur)
+    animes: "https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExZGdjaGg0Z2t3eW5iMGliYXg2M25tY3d6d2V6cWpld2NvNTNkaWp5NyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/cpkQpkVFOOoNi/giphy.gif"
   };
 
   const gradientClass: Record<GifBackgroundProps['type'], string> = {
     movies: 'bg-gradient-to-br from-blue-900 to-blue-700',
     series: 'bg-gradient-to-br from-purple-900 to-purple-700',
     books: 'bg-gradient-to-br from-emerald-900 to-emerald-700',
+    animes: 'bg-gradient-to-br from-rose-900 to-rose-700',
   };
 
   return (

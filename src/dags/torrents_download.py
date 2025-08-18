@@ -99,7 +99,7 @@ def B_download_torrent(**kwargs):
     qb_password = json.loads(qb)["QB_PASSWORD"]
     qb_savepath = json.loads(qb)["QB_SAVEPATH"]
 
-    if category == "Série":
+    if category == "Série" or category == "Série d'animation":
         qb_savepath = qb_savepath + '/Séries/' + title
         qb_category = "Series-DAG"
     elif category == "Livres":

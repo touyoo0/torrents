@@ -104,9 +104,11 @@ export async function GET(req: NextRequest) {
     const params: any[] = [cutoff];
 
     if (categorie === 'movies') {
-      whereClause += " AND categorie != 'Série'";
+      whereClause += " AND categorie IN ('Film','Film d''animation')";
     } else if (categorie === 'series') {
       whereClause += " AND categorie = 'Série'";
+    } else if (categorie === 'animes') {
+      whereClause += " AND categorie = 'Série d''animation'";
     }
 
     if (countOnly) {
@@ -126,8 +128,22 @@ export async function GET(req: NextRequest) {
                  )
                GROUP BY t.title
              ) as x`
+          : categorie === 'animes'
+          ? `SELECT COUNT(*) as total FROM (
+               SELECT t.title
+               FROM ygg_torrents_new t
+               WHERE t.created_at > ?
+                 AND t.release_date IS NOT NULL AND t.release_date <> ''
+                 AND DATEDIFF(CURDATE(), DATE(t.release_date)) < 365
+                 AND t.categorie = 'Série d''animation'
+                 AND NOT EXISTS (
+                   SELECT 1 FROM ygg_torrents_new tp
+                   WHERE tp.title = t.title AND tp.created_at <= ?
+                 )
+               GROUP BY t.title
+             ) as x`
           : `SELECT COUNT(DISTINCT title) as total FROM ygg_torrents_new ${whereClause}`,
-        categorie === 'series' ? [cutoff, cutoff] : params
+        categorie === 'series' ? [cutoff, cutoff] : (categorie === 'animes' ? [cutoff, cutoff] : params)
       );
       return new Response(JSON.stringify({ total: countResult[0]?.total || 0 }), {
         status: 200,
@@ -151,13 +167,29 @@ export async function GET(req: NextRequest) {
            GROUP BY t.title
            ORDER BY MAX(t.created_at) DESC
            LIMIT ? OFFSET ?`
+        : categorie === 'animes'
+        ? `SELECT MIN(t.id) as id
+           FROM ygg_torrents_new t
+           WHERE t.created_at > ?
+             AND t.release_date IS NOT NULL AND t.release_date <> ''
+             AND DATEDIFF(CURDATE(), DATE(t.release_date)) < 365
+             AND t.categorie = 'Série d''animation'
+             AND NOT EXISTS (
+               SELECT 1 FROM ygg_torrents_new tp
+               WHERE tp.title = t.title AND tp.created_at <= ?
+             )
+           GROUP BY t.title
+           ORDER BY MAX(t.created_at) DESC
+           LIMIT ? OFFSET ?`
         : `SELECT MIN(id) as id
            FROM ygg_torrents_new
            ${whereClause}
            GROUP BY title
            ORDER BY MAX(created_at) DESC
            LIMIT ? OFFSET ?`,
-      categorie === 'series' ? [cutoff, cutoff, limit, offset] : [...params, limit, offset]
+      categorie === 'series'
+        ? [cutoff, cutoff, limit, offset]
+        : (categorie === 'animes' ? [cutoff, cutoff, limit, offset] : [...params, limit, offset])
     ) as [RowDataPacket[], FieldPacket[]];
 
     if (sortedIds.length === 0) {
@@ -204,8 +236,22 @@ export async function GET(req: NextRequest) {
                )
              GROUP BY t.title
            ) as x`
+        : categorie === 'animes'
+        ? `SELECT COUNT(*) as total FROM (
+             SELECT t.title
+             FROM ygg_torrents_new t
+             WHERE t.created_at > ?
+               AND t.release_date IS NOT NULL AND t.release_date <> ''
+               AND DATEDIFF(CURDATE(), DATE(t.release_date)) < 365
+               AND t.categorie = 'Série d''animation'
+               AND NOT EXISTS (
+                 SELECT 1 FROM ygg_torrents_new tp
+                 WHERE tp.title = t.title AND tp.created_at <= ?
+               )
+             GROUP BY t.title
+           ) as x`
         : `SELECT COUNT(DISTINCT title) as total FROM ygg_torrents_new ${whereClause}`,
-      categorie === 'series' ? [cutoff, cutoff] : params
+      categorie === 'series' ? [cutoff, cutoff] : (categorie === 'animes' ? [cutoff, cutoff] : params)
     );
 
     return new Response(JSON.stringify({ items: rows, total: countResult[0]?.total || 0 }), {

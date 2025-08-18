@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const title = searchParams.get('title') || '';
-    const catParam = searchParams.get('categorie'); // 'films' | 'serie' | undefined
+    const catParam = searchParams.get('categorie'); // 'films' | 'serie' | exact category string (e.g., "Série d'animation") | undefined
     const limit = Math.min(parseInt(searchParams.get('limit') || '10', 10) || 10, 20);
 
     if (!title) {
@@ -38,10 +38,29 @@ export async function GET(req: NextRequest) {
       [title]
     );
 
-    let targetCategorie: 'Série' | 'FilmOuAutre' = 'FilmOuAutre';
-    if (catParam === 'serie') targetCategorie = 'Série';
-    else if (catParam === 'films') targetCategorie = 'FilmOuAutre';
-    else if (baseRows[0]?.categorie === 'Série') targetCategorie = 'Série';
+    // Decide category filtering strategy
+    // categoryEq: exact category equality (e.g., 'Série' or "Série d'animation")
+    // excludeNonSeries: when true, we exclude both 'Série' and "Série d'animation" (for films/others)
+    let categoryEq: string | null = null;
+    let excludeSeries = false;
+    if (catParam) {
+      const lower = catParam.toLowerCase();
+      if (lower === 'serie') {
+        categoryEq = 'Série';
+      } else if (lower === 'films') {
+        excludeSeries = true;
+      } else {
+        // Use the provided exact category label
+        categoryEq = catParam;
+      }
+    } else {
+      const baseCat = baseRows[0]?.categorie || '';
+      if (baseCat === 'Série' || baseCat === "Série d'animation") {
+        categoryEq = baseCat;
+      } else {
+        excludeSeries = true;
+      }
+    }
 
     const baseGenresRaw = baseRows[0]?.genres || '';
     const baseGenres = baseGenresRaw
@@ -51,13 +70,13 @@ export async function GET(req: NextRequest) {
       .slice(0, 6); // limit number of LIKEs
 
     // Build WHERE filters
-    let where = '';
+    let where = 'WHERE 1=1';
     const params: any[] = [];
-
-    if (targetCategorie === 'Série') {
-      where += "WHERE categorie = 'Série'";
-    } else {
-      where += "WHERE categorie != 'Série'";
+    if (categoryEq) {
+      where += ' AND categorie = ?';
+      params.push(categoryEq);
+    } else if (excludeSeries) {
+      where += " AND categorie NOT IN ('Série','Série d''animation')";
     }
 
     // Exclude same title
@@ -84,15 +103,26 @@ export async function GET(req: NextRequest) {
 
     if (!Array.isArray(idRows) || idRows.length === 0) {
       // Fallback: return latest in same category if genre-based is empty
+      // Build fallback WHERE similarly
+      let fbWhere = 'WHERE 1=1';
+      const fbParams: any[] = [];
+      if (categoryEq) {
+        fbWhere += ' AND categorie = ?';
+        fbParams.push(categoryEq);
+      } else if (excludeSeries) {
+        fbWhere += " AND categorie NOT IN ('Série','Série d''animation')";
+      }
+      fbWhere += ' AND title <> ?';
+      fbParams.push(title);
+
       const [fallbackRows] = await pool.query<RowDataPacket[]>(
         `SELECT MIN(id) as id, title, MAX(release_date) as last_date
          FROM ygg_torrents_new
-         ${targetCategorie === 'Série' ? "WHERE categorie = 'Série'" : "WHERE categorie != 'Série'"}
-           AND title <> ?
+         ${fbWhere}
          GROUP BY title
          ORDER BY last_date DESC
          LIMIT ?`,
-        [title, limit]
+        [...fbParams, limit]
       );
 
       if (!Array.isArray(fallbackRows) || fallbackRows.length === 0) {
