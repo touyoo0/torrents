@@ -65,11 +65,13 @@ def B_get_torrents(**kwargs):
     torrents_list = []
 
     url = base_url + "torrents?order_by=uploaded_at&limit=25&category_id="
-    for api in [url + '2178', url + '2183', url + '2184']:
+    for api in [url + '2178', url + '2179', url + '2183', url + '2184']:
             if api == url + '2178':
                 category = "Film d'animation"
             elif api == url + '2183':
                 category = "Film"
+            elif api == url + '2179':
+                category = "Série d'animation"
             else:
                 category = "Série"
             logger.info(f"Récupération des torrents pour la catégorie {category}")
@@ -118,7 +120,7 @@ def C_filter_torrents(**kwargs):
         
         if has_resolution and has_language and not has_exclude and size < filter_size:
 
-            if category == "Série":
+            if category == "Série" or category == "Série d'animation":
                 saison = re.search(r'S(\d+)', upcase_name)
                 saison_integral = re.search(r'INT[EÉ]GRAL[E]?|COMPL[EÈÊ]TE', upcase_name)
 
@@ -253,7 +255,7 @@ def E_get_tmdb_details(**kwargs):
             if (not title_match or not year_match) and (category == "Film" or category == "Film d'animation"):
                 logger.info(f"Titre ou année non trouvé pour le torrent {name}")
                 continue
-            elif not title_match and category == "Série":
+            elif not title_match and (category == "Série" or category == "Série d'animation"):
                 logger.info(f"Titre non trouvé pour le torrent {name}")
                 continue
 
@@ -277,7 +279,7 @@ def E_get_tmdb_details(**kwargs):
                 if results:
                     # Prendre le premier résultat
                     tmdb = results[0]
-                    if category == "Série":
+                    if category == "Série" or category == "Série d'animation":
                         tmdb_title = tmdb['name']
                         tmdb_release_date = tmdb['first_air_date']
                     else:
@@ -396,7 +398,7 @@ def F_filter_existing_torrents(**kwargs):
             # Build query parameters dynamically
             params = [title]
             
-            if category == "Série":
+            if category == "Série" or category == "Série d'animation":
                 if saison:
                     query_filter += " AND saison = %s"
                     params.append(saison)

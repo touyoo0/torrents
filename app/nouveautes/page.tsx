@@ -67,7 +67,7 @@ export default function NouveautesPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [overviewNouveaute, setOverviewNouveaute] = useState<Nouveautes | null>(null);
-  const [selectedTab, setSelectedTab] = useState<'films' | 'series'>('films');
+  const [selectedTab, setSelectedTab] = useState<'films' | 'series' | 'animes'>('films');
   const [marking, setMarking] = useState(false);
   
 
@@ -79,7 +79,8 @@ export default function NouveautesPage() {
     const params = new URLSearchParams({
       limit: NOUVEAUTES_PER_PAGE.toString(),
       offset: offset.toString(),
-      categorie: selectedTab === 'films' ? 'movies' : 'series'
+      categorie:
+        selectedTab === 'films' ? 'movies' : selectedTab === 'series' ? 'series' : 'animes'
     });
     
     const res = await fetch(`/api/nouveautes?${params.toString()}`);
@@ -115,7 +116,7 @@ export default function NouveautesPage() {
   
   // Fonction pour récupérer uniquement le nombre total de films
   const fetchTotalNouveautes = useCallback(async () => {
-    const res = await fetch(`/api/nouveautes?count=true&categorie=${selectedTab === 'films' ? 'movies' : 'series'}`);
+    const res = await fetch(`/api/nouveautes?count=true&categorie=${selectedTab === 'films' ? 'movies' : selectedTab === 'series' ? 'series' : 'animes'}`);
     if (res.ok) {
       const data = await res.json();
       const total: number = typeof data?.total === 'number' ? data.total : 0;
@@ -180,45 +181,54 @@ export default function NouveautesPage() {
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 font-display">
             Nouveautés
           </h1>
-          {/* Toggle Films / Séries and Mark button shown only when there are results */}
+          {/* Category toggle always visible */}
+          <div className="mt-2 flex items-center justify-center gap-3">
+            <button
+              onClick={() => { setSelectedTab('films'); setCurrentPage(1); }}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                selectedTab === 'films'
+                  ? 'relative overflow-hidden text-white border-0 bg-[linear-gradient(90deg,_#6366f1_0%,_#a855f7_50%,_#ec4899_100%)]'
+                  : 'border border-white/20 text-white/80 hover:bg-white/10'
+              }`}
+            >
+              Films
+            </button>
+            <button
+              onClick={() => { setSelectedTab('series'); setCurrentPage(1); }}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                selectedTab === 'series'
+                  ? 'relative overflow-hidden text-white border-0 bg-[linear-gradient(90deg,_#6366f1_0%,_#a855f7_50%,_#ec4899_100%)]'
+                  : 'border border-white/20 text-white/80 hover:bg-white/10'
+              }`}
+            >
+              Séries
+            </button>
+            <button
+              onClick={() => { setSelectedTab('animes'); setCurrentPage(1); }}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                selectedTab === 'animes'
+                  ? 'relative overflow-hidden text-white border-0 bg-[linear-gradient(90deg,_#6366f1_0%,_#a855f7_50%,_#ec4899_100%)]'
+                  : 'border border-white/20 text-white/80 hover:bg-white/10'
+              }`}
+            >
+              Animés
+            </button>
+          </div>
+          {/* Mark button only when there are results */}
           {!loading && nouveautes.length > 0 && (
-            <>
-              <div className="mt-2 flex items-center justify-center gap-3">
-                <button
-                  onClick={() => { setSelectedTab('films'); setCurrentPage(1); }}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    selectedTab === 'films'
-                      ? 'relative overflow-hidden text-white border-0 bg-[linear-gradient(90deg,_#6366f1_0%,_#a855f7_50%,_#ec4899_100%)]'
-                      : 'border border-white/20 text-white/80 hover:bg-white/10'
-                  }`}
-                >
-                  Films
-                </button>
-                <button
-                  onClick={() => { setSelectedTab('series'); setCurrentPage(1); }}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
-                    selectedTab === 'series'
-                      ? 'relative overflow-hidden text-white border-0 bg-[linear-gradient(90deg,_#6366f1_0%,_#a855f7_50%,_#ec4899_100%)]'
-                      : 'border border-white/20 text-white/80 hover:bg-white/10'
-                  }`}
-                >
-                  Séries
-                </button>
-              </div>
-              <div className="mt-4 flex items-center justify-center">
-                <button
-                  onClick={markAsRead}
-                  disabled={marking}
-                  className={`px-5 py-2 rounded-full text-sm font-semibold transition-colors border ${
-                    marking
-                      ? 'border-white/20 text-white/60 bg-white/5 cursor-not-allowed'
-                      : 'border-white/20 text-white/90 hover:bg-white/10'
-                  }`}
-                >
-                  {marking ? 'Nettoyage…' : 'Marquer comme lu'}
-                </button>
-              </div>
-            </>
+            <div className="mt-4 flex items-center justify-center">
+              <button
+                onClick={markAsRead}
+                disabled={marking}
+                className={`px-5 py-2 rounded-full text-sm font-semibold transition-colors border ${
+                  marking
+                    ? 'border-white/20 text-white/60 bg-white/5 cursor-not-allowed'
+                    : 'border-white/20 text-white/90 hover:bg-white/10'
+                }`}
+              >
+                {marking ? 'Nettoyage…' : 'Marquer comme lu'}
+              </button>
+            </div>
           )}
         </motion.div>
 
@@ -380,7 +390,10 @@ import Link from 'next/link';
 
 function NouveauteCard({ nouveaute, index }: { nouveaute: Nouveautes; index: number }) {
   const theme = cardThemes[index % cardThemes.length];
-  const targetBase = nouveaute.categorie === 'Série' ? 'series' : 'movies';
+  const targetBase =
+    nouveaute.categorie === 'Série'
+      ? 'series'
+      : (nouveaute.categorie === "Série d'animation" ? 'animes' : 'movies');
 
   return (
     <Link href={`/${targetBase}/title/${encodeURIComponent(nouveaute.title)}?from=nouveautes`} className="group h-full block p-1.5">
