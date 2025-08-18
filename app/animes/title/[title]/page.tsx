@@ -219,7 +219,7 @@ export default function AnimeTitlePage() {
       if (!animes || animes.length === 0) return;
       try {
         setStatusesLoading(true);
-        const res = await fetch(`/api/telechargements?categorie=serie`);
+        const res = await fetch(`/api/telechargements?categorie=animes`);
         if (!res.ok) return;
         const data = await res.json();
         const map: Record<number, string> = {};
@@ -289,7 +289,7 @@ export default function AnimeTitlePage() {
         const item = animes.find(s => s.id === torrentId) || animes[0];
         const q = item?.title || title;
         setTimeout(() => {
-          router.push(`/telechargements?categorie=serie&q=${encodeURIComponent(q)}`);
+          router.push(`/telechargements?categorie=animes&q=${encodeURIComponent(q)}`);
         }, 1000);
       } else {
         setStatusMessage(prev => ({ ...prev, [torrentId]: `Erreur: ${data?.error || 'Échec du téléchargement'}` }));
