@@ -73,6 +73,8 @@ export default function MoviesPage() {
   const [selectedGenre, setSelectedGenre] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('latest');
+  // Mémorise la dernière recherche validée (querystring sans limit/offset)
+  const [lastQuery, setLastQuery] = useState<string>('');
   
   // Liste prédéfinie des genres
   const allGenres = [
@@ -115,28 +117,16 @@ export default function MoviesPage() {
     return ranges;
   }, [currentYear]);
 
-  const fetchMovies = useCallback(async (page: number) => {
+  // Récupère les films pour une page donnée en utilisant la dernière recherche validée
+  const fetchMovies = useCallback(async (page: number, queryOverride?: string) => {
     setLoading(true);
     const offset = (page - 1) * MOVIES_PER_PAGE;
-    
-    // Construire les paramètres de requête
-    const params = new URLSearchParams({
-      limit: MOVIES_PER_PAGE.toString(),
-      offset: offset.toString(),
-      ...(searchQuery && { q: searchQuery }),
-      ...(selectedGenre !== 'all' && { genre: selectedGenre }),
-      ...(sortBy && { sort: sortBy })
-    });
-    
-    // Gérer les plages d'années
-    if (selectedYear !== 'all') {
-      const yearRange = yearRanges.find(range => range.value === selectedYear);
-      if (yearRange) {
-        params.append('startYear', yearRange.startYear.toString());
-        params.append('endYear', yearRange.endYear.toString());
-      }
-    }
-    
+    // Utilise la query validée (queryOverride si fourni, sinon lastQuery)
+    const baseQuery = queryOverride ?? lastQuery;
+    const params = new URLSearchParams(baseQuery);
+    params.set('limit', MOVIES_PER_PAGE.toString());
+    params.set('offset', offset.toString());
+
     const res = await fetch(`/api/movies?${params.toString()}`);
     
     if (res.ok) {
@@ -159,7 +149,7 @@ export default function MoviesPage() {
       setTotalPages(Math.ceil(total / MOVIES_PER_PAGE));
     }
     setLoading(false);
-  }, [searchQuery, selectedGenre, selectedYear, sortBy, yearRanges]);
+  }, [lastQuery]);
   
   // Fonction pour récupérer uniquement le nombre total de films
   const fetchTotalMovies = useCallback(async () => {
@@ -174,24 +164,18 @@ export default function MoviesPage() {
     fetchMovies(currentPage);
     // Remonter en haut de la page lors du changement de page
     window.scrollTo(0, 0);
-  }, [currentPage, fetchMovies]);
+  }, [currentPage]);
   
   // Fonction pour déclencher la recherche
   const handleSearch = useCallback(() => {
     setCurrentPage(1);
-    // Appel direct à fetch avec les paramètres actuels
-    const offset = 0; // Première page
-    
-    // Construire les paramètres de requête
+    // Construire les paramètres de requête (sans limit/offset)
     const params = new URLSearchParams({
-      limit: MOVIES_PER_PAGE.toString(),
-      offset: offset.toString(),
       ...(searchQuery && { q: searchQuery }),
       ...(selectedGenre !== 'all' && { genre: selectedGenre }),
       ...(sortBy && { sort: sortBy })
     });
-    
-    // Gérer les plages d'années
+
     if (selectedYear !== 'all') {
       const yearRange = yearRanges.find(range => range.value === selectedYear);
       if (yearRange) {
@@ -199,41 +183,12 @@ export default function MoviesPage() {
         params.append('endYear', yearRange.endYear.toString());
       }
     }
-    
-    // Effectuer la recherche
-    console.log('Requête API envoyée:', `/api/movies?${params.toString()}`);
-    setLoading(true);
-    
-    fetch(`/api/movies?${params.toString()}`)
-      .then(res => {
-        console.log('Réponse reçue, statut:', res.status);
-        if (!res.ok) {
-          throw new Error(`Erreur HTTP: ${res.status}`);
-        }
-        return res.json();
-      })
-      .then(data => {
-        console.log('Données reçues:', data);
-        if (data && Array.isArray(data.movies)) {
-          console.log('Nombre de films reçus:', data.movies.length);
-          setMovies(data.movies);
-          setTotalPages(Math.ceil(data.total / MOVIES_PER_PAGE));
-        } else {
-          console.error('Format de données inattendu:', data);
-          setMovies([]);
-          setTotalPages(1);
-        }
-      })
-      .catch(error => {
-        console.error('Erreur lors de la recherche:', error);
-        setMovies([]);
-        setTotalPages(1);
-      })
-      .finally(() => {
-        console.log('Fin du chargement');
-        setLoading(false);
-      });
-  }, [searchQuery, selectedGenre, selectedYear, sortBy, yearRanges]);
+
+    const queryStr = params.toString();
+    setLastQuery(queryStr);
+    console.log('Requête API (validée):', `/api/movies?${queryStr}&limit=${MOVIES_PER_PAGE}&offset=0`);
+    fetchMovies(1, queryStr);
+  }, [searchQuery, selectedGenre, selectedYear, sortBy, yearRanges, fetchMovies]);
   
   // Recherche automatique après un délai (désactivé au profit du bouton Rechercher)
   // useEffect(() => {
@@ -244,10 +199,7 @@ export default function MoviesPage() {
   //   return () => clearTimeout(timer);
   // }, [searchQuery, selectedGenre, selectedYear, sortBy]);
   
-  // Recharger les films lors du changement de page
-  useEffect(() => {
-    fetchMovies(currentPage);
-  }, [currentPage, fetchMovies]);
+  // Nettoyage: éviter un deuxième effet redondant
   
   // Charger le nombre total de films au chargement initial
   useEffect(() => {

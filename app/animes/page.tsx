@@ -73,6 +73,8 @@ export default function AnimesPage() {
   const [selectedGenre, setSelectedGenre] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('latest');
+  // Mémorise la dernière requête validée (sans limit/offset)
+  const [lastQuery, setLastQuery] = useState<string>('');
   
   // Liste prédéfinie des genres
   const allGenres = [
@@ -111,24 +113,14 @@ export default function AnimesPage() {
     return ranges;
   }, [currentYear]);
 
-  const fetchAnimes = useCallback(async (page: number) => {
+  // Récupère les animes pour une page donnée en utilisant la dernière requête validée
+  const fetchAnimes = useCallback(async (page: number, queryOverride?: string) => {
     setLoading(true);
     const offset = (page - 1) * ANIMES_PER_PAGE;
-    const params = new URLSearchParams({
-      limit: ANIMES_PER_PAGE.toString(),
-      offset: offset.toString(),
-      ...(searchQuery && { q: searchQuery }),
-      ...(selectedGenre !== 'all' && { genre: selectedGenre }),
-      ...(sortBy && { sort: sortBy })
-    });
-
-    if (selectedYear !== 'all') {
-      const yearRange = yearRanges.find(range => range.value === selectedYear);
-      if (yearRange) {
-        params.append('startYear', yearRange.startYear.toString());
-        params.append('endYear', yearRange.endYear.toString());
-      }
-    }
+    const baseQuery = queryOverride ?? lastQuery;
+    const params = new URLSearchParams(baseQuery);
+    params.set('limit', ANIMES_PER_PAGE.toString());
+    params.set('offset', offset.toString());
 
     const res = await fetch(`/api/animes?${params.toString()}`);
     if (res.ok) {
@@ -144,7 +136,7 @@ export default function AnimesPage() {
       setTotalPages(Math.ceil(total / ANIMES_PER_PAGE));
     }
     setLoading(false);
-  }, [searchQuery, selectedGenre, selectedYear, sortBy, yearRanges]);
+  }, [lastQuery]);
 
   const fetchTotalAnimes = useCallback(async () => {
     const res = await fetch(`/api/animes?count=true`);
@@ -157,14 +149,12 @@ export default function AnimesPage() {
   useEffect(() => {
     fetchAnimes(currentPage);
     window.scrollTo(0, 0);
-  }, [currentPage, fetchAnimes]);
+  }, [currentPage]);
 
   const handleSearch = useCallback(() => {
     setCurrentPage(1);
-    const offset = 0;
+    // Construire les paramètres de requête (sans limit/offset)
     const params = new URLSearchParams({
-      limit: ANIMES_PER_PAGE.toString(),
-      offset: offset.toString(),
       ...(searchQuery && { q: searchQuery }),
       ...(selectedGenre !== 'all' && { genre: selectedGenre }),
       ...(sortBy && { sort: sortBy })
@@ -176,31 +166,12 @@ export default function AnimesPage() {
         params.append('endYear', yearRange.endYear.toString());
       }
     }
-    setLoading(true);
-    fetch(`/api/animes?${params.toString()}`)
-      .then(res => {
-        if (!res.ok) throw new Error(`Erreur HTTP: ${res.status}`);
-        return res.json();
-      })
-      .then(data => {
-        if (data && Array.isArray(data.animes)) {
-          setAnimes(data.animes);
-          setTotalPages(Math.ceil(data.total / ANIMES_PER_PAGE));
-        } else {
-          setAnimes([]);
-          setTotalPages(1);
-        }
-      })
-      .catch(() => {
-        setAnimes([]);
-        setTotalPages(1);
-      })
-      .finally(() => setLoading(false));
-  }, [searchQuery, selectedGenre, selectedYear, sortBy, yearRanges]);
+    const queryStr = params.toString();
+    setLastQuery(queryStr);
+    fetchAnimes(1, queryStr);
+  }, [searchQuery, selectedGenre, selectedYear, sortBy, yearRanges, fetchAnimes]);
 
-  useEffect(() => {
-    fetchAnimes(currentPage);
-  }, [currentPage, fetchAnimes]);
+  // Nettoyage: suppression de l'effet redondant de rechargement
 
   useEffect(() => {
     fetchTotalAnimes();

@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     // Si on demande uniquement le nombre total de films
     if (countOnly) {
       const [countResult] = await pool.query<CountResult[]>(
-        `SELECT COUNT(DISTINCT title) as total FROM ygg_torrents_new WHERE categorie = 'Film' or categorie = 'Film d''animation'`
+        `SELECT COUNT(DISTINCT title) as total FROM ygg_torrents_new WHERE categorie IN ('Film', 'Film d''animation')`
       );
       return new Response(JSON.stringify({ total: countResult[0]?.total || 0 }), {
         status: 200,
@@ -44,7 +44,8 @@ export async function GET(req: NextRequest) {
     const sort = searchParams.get('sort') || 'latest';
 
     // Construire la requête avec filtrage
-    let whereClause = "WHERE categorie = 'Film' or categorie = 'Film d''animation'";
+    // IMPORTANT: utiliser IN pour éviter les problèmes de précédence entre OR et AND
+    let whereClause = "WHERE categorie IN ('Film', 'Film d''animation')";
     const params: any[] = [];
 
     // Ajouter les conditions de filtrage
