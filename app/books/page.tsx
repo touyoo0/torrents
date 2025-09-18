@@ -50,6 +50,13 @@ export default function BooksPage() {
   const [downloading, setDownloading] = useState<Record<number, boolean>>({});
   const [toast, setToast] = useState<{open: boolean; kind: 'success' | 'error'; text: string}>({ open: false, kind: 'success', text: '' });
 
+  // Modal user picker state
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const [pickerError, setPickerError] = useState<string | null>(null);
+  const [pickerUsers, setPickerUsers] = useState<Array<{ id: number; name: string; email: string | null }>>([]);
+  const [pendingDownload, setPendingDownload] = useState<{ id: number; title: string } | null>(null);
+
   const fetchBooks = async () => {
     setLoading(true);
     try {
@@ -87,21 +94,31 @@ export default function BooksPage() {
     fetchBooks();
   };
 
-  const triggerDownload = async (torrentId: number, title: string) => {
+  // Open modal and fetch users
+  const openUserPicker = async (torrentId: number, title: string) => {
+    setPendingDownload({ id: torrentId, title });
+    setPickerOpen(true);
+    setPickerLoading(true);
+    setPickerError(null);
+    try {
+      const res = await fetch('/api/users');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      setPickerUsers(Array.isArray(data?.users) ? data.users : []);
+    } catch (e) {
+      setPickerError("Impossible de récupérer la liste des utilisateurs");
+      setPickerUsers([]);
+    } finally {
+      setPickerLoading(false);
+    }
+  };
+
+  const triggerDownloadForUser = async (userName: string) => {
+    if (!pendingDownload) return;
+    const { id: torrentId, title } = pendingDownload;
+    setPickerOpen(false);
     setDownloading((m) => ({ ...m, [torrentId]: true }));
     try {
-      // Resolve current user from IP (if available)
-      let currentUser: string | null = null;
-      try {
-        const who = await fetch('/api/whoami');
-        if (who.ok) {
-          const data = await who.json();
-          if (data && data.user && typeof data.user.username === 'string') {
-            currentUser = data.user.username;
-          }
-        }
-      } catch {}
-
       const res = await fetch('/api/airflow', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -111,12 +128,11 @@ export default function BooksPage() {
             torrent_id: torrentId,
             category: 'Livres',
             title,
-            ...(currentUser ? { user: currentUser } : {})
+            user: userName,
           },
         }),
       });
       if (!res.ok) throw new Error('Airflow error');
-      // Joli toast de succès
       setToast({ open: true, kind: 'success', text: `Téléchargement lancé pour “${title}”` });
       setTimeout(() => setToast((t) => ({ ...t, open: false })), 3000);
     } catch (e) {
@@ -125,6 +141,7 @@ export default function BooksPage() {
       setTimeout(() => setToast((t) => ({ ...t, open: false })), 3500);
     } finally {
       setDownloading((m) => ({ ...m, [torrentId]: false }));
+      setPendingDownload(null);
     }
   };
 
@@ -257,7 +274,7 @@ export default function BooksPage() {
                   </div>
                   <div className="sm:col-span-2 text-left sm:text-right">
                     <button
-                      onClick={() => triggerDownload(b.id, b.name)}
+                      onClick={() => openUserPicker(b.id, b.name)}
                       disabled={!!downloading[b.id]}
                       className={`w-full sm:w-auto inline-flex items-center justify-center rounded-md px-3 py-1.5 text-xs font-medium ${downloading[b.id] ? 'bg-gray-600 cursor-not-allowed' : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700'}`}
                     >
@@ -352,6 +369,73 @@ export default function BooksPage() {
             </div>
           </motion.div>
         )}
+
+        {/* Modal: Sélecteur d'utilisateur */}
+        <AnimatePresence>
+          {pickerOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center"
+              aria-modal="true"
+              role="dialog"
+            >
+              {/* Backdrop */}
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setPickerOpen(false)} />
+              {/* Modal Content */}
+              <motion.div
+                initial={{ scale: 0.96, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.96, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 180, damping: 18 }}
+                className="relative z-10 w-[92vw] max-w-lg rounded-2xl border border-white/10 bg-slate-900/90 shadow-2xl p-5"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <h2 className="text-lg font-semibold">Choisir un utilisateur</h2>
+                  <button
+                    onClick={() => setPickerOpen(false)}
+                    className="text-white/70 hover:text-white"
+                    aria-label="Fermer"
+                  >
+                    ×
+                  </button>
+                </div>
+                <p className="text-sm text-white/70 mb-4">Sélectionnez l'utilisateur pour attribuer ce téléchargement.</p>
+
+                {pickerLoading ? (
+                  <div className="text-white/70">Chargement…</div>
+                ) : pickerError ? (
+                  <div className="text-red-400">{pickerError}</div>
+                ) : pickerUsers.length === 0 ? (
+                  <div className="text-white/70">Aucun utilisateur disponible.</div>
+                ) : (
+                  <div className="max-h-72 overflow-auto space-y-2 pr-1">
+                    {pickerUsers.map((u) => (
+                      <button
+                        key={u.id}
+                        onClick={() => triggerDownloadForUser(u.name)}
+                        className="w-full text-left px-4 py-2 rounded-md bg-slate-800 hover:bg-slate-700 border border-slate-700"
+                      >
+                        <div className="font-medium">{u.name}</div>
+                        {u.email && <div className="text-xs text-white/60">{u.email}</div>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-5 flex justify-end gap-2">
+                  <button
+                    onClick={() => setPickerOpen(false)}
+                    className="px-4 py-2 rounded-md border border-slate-700 hover:bg-slate-800"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </main>
   );
