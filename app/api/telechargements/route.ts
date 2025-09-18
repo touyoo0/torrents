@@ -16,51 +16,6 @@ interface TorrentRow extends RowDataPacket {
   repertoire?: string | null;
 }
 
-// users.json replaced by DB table `users` with columns:
-// - ip_adresses (varchar) possibly JSON array, CSV, or single IP
-// - username (string)
-// - team (string, optional)
-
-function normalizeIp(ip: string | null | undefined): string | null {
-  if (!ip) return null;
-  const trimmed = ip.trim();
-  // Handle IPv6-mapped IPv4 addresses like ::ffff:192.168.1.24
-  if (trimmed.startsWith('::ffff:')) return trimmed.replace('::ffff:', '');
-  return trimmed;
-}
-
-function getClientIp(req: NextRequest): string | null {
-  // Try to read common headers first
-  const xff = req.headers.get('x-forwarded-for') || '';
-  const xri = req.headers.get('x-real-ip') || '';
-  const fromXff = xff.split(',')[0]?.trim();
-  const ip = fromXff || xri || (req as any).ip || '';
-  return normalizeIp(ip);
-}
-
-async function resolveUserFromIp(ip: string | null): Promise<{ username: string; team: string } | null> {
-  if (!ip) return null;
-  try {
-    const query = `
-      SELECT name AS username, team
-      FROM users
-      WHERE FIND_IN_SET(?, ip_adresses) OR ip_adresses = ?
-      ORDER BY last_activity DESC
-      LIMIT 1
-    `;
-    const [rows] = await pool.query<RowDataPacket[]>(query, [ip, ip]);
-    if ((rows as any).length > 0) {
-      const r: any = (rows as any)[0];
-      const username = typeof r.username === 'string' ? r.username : null;
-      const team = typeof r.team === 'string' ? r.team : '';
-      if (username) return { username, team };
-    }
-    return null;
-  } catch (e) {
-    console.error('Unable to resolve user from users table', e);
-    return null;
-  }
-}
 
 export async function DELETE(req: NextRequest) {
   try {
@@ -103,17 +58,7 @@ export async function DELETE(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    // Identify the visitor
-    const clientIp = getClientIp(req);
-    const user = await resolveUserFromIp(clientIp);
-
-    // If IP not mapped, return empty list (security by default)
-    if (!user) {
-      return new Response(JSON.stringify({ torrents: [] }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
+    // Always return all downloads (no user filtering)
 
     // Statuts à inclure
     const statuts = ["✔️ Téléchargé", "⌛ Téléchargement"];
@@ -126,12 +71,6 @@ export async function GET(req: NextRequest) {
       whereClause += " AND categorie = 'Série'";
     } else if (categorie === 'films') {
       whereClause += " AND categorie != 'Série'";
-    }
-
-    // Team-based filtering: Default -> filter by username, Admin -> no additional filter
-    if (user.team !== 'Admin') {
-      whereClause += ' AND username = ?';
-      params.push(user.username);
     }
 
     const [rows] = await pool.query<TorrentRow[]>(

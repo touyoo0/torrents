@@ -59,26 +59,21 @@ interface YearRange {
   endYear: number;
 }
 
-const NOUVEAUTES_PER_PAGE = 20; // Réduit pour améliorer les performances de chargement
+const NOUVEAUTES_PER_PAGE = 25; // Toujours afficher les 25 derniers éléments
 
 export default function NouveautesPage() {
   const [nouveautes, setNouveautes] = useState<Nouveautes[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
   const [overviewNouveaute, setOverviewNouveaute] = useState<Nouveautes | null>(null);
   const [selectedTab, setSelectedTab] = useState<'films' | 'series'>('films');
-  const [marking, setMarking] = useState(false);
   
 
-  const fetchNouveautes = useCallback(async (page: number) => {
+  const fetchNouveautes = useCallback(async () => {
     setLoading(true);
-    const offset = (page - 1) * NOUVEAUTES_PER_PAGE;
     
     // Construire les paramètres de requête (avec categorie seulement)
     const params = new URLSearchParams({
       limit: NOUVEAUTES_PER_PAGE.toString(),
-      offset: offset.toString(),
       categorie: selectedTab === 'films' ? 'movies' : 'series'
     });
     
@@ -89,7 +84,6 @@ export default function NouveautesPage() {
       // Support both { items } and legacy { nouveautes }
       const rawItems = Array.isArray(data?.items) ? data.items : (Array.isArray(data?.nouveautes) ? data.nouveautes : []);
       const items: Nouveautes[] = rawItems as Nouveautes[];
-      const total: number = typeof data?.total === 'number' ? data.total : items.length;
       
       // Vérifier s'il y a des doublons
       const uniqueTitles = new Set<string>();
@@ -102,71 +96,25 @@ export default function NouveautesPage() {
       });
       
       setNouveautes(filteredNouveautes);
-      
-      // Utiliser le nombre total renvoyé par l'API, sinon fallback sur la longueur
-      setTotalPages(Math.max(1, Math.ceil(total / NOUVEAUTES_PER_PAGE)));
     } else {
       // En cas d'erreur HTTP
       setNouveautes([]);
-      setTotalPages(1);
     }
     setLoading(false);
   }, [selectedTab]);
-  
-  // Fonction pour récupérer uniquement le nombre total de films
-  const fetchTotalNouveautes = useCallback(async () => {
-    const res = await fetch(`/api/nouveautes?count=true&categorie=${selectedTab === 'films' ? 'movies' : 'series'}`);
-    if (res.ok) {
-      const data = await res.json();
-      const total: number = typeof data?.total === 'number' ? data.total : 0;
-      setTotalPages(Math.max(1, Math.ceil(total / NOUVEAUTES_PER_PAGE)));
-    }
-  }, [selectedTab]);
-
-  const markAsRead = useCallback(async () => {
-    try {
-      setMarking(true);
-      const res = await fetch('/api/nouveautes/mark', { method: 'POST' });
-      if (!res.ok) throw new Error('Failed to mark as read');
-      // Reset to first page and refresh counts and list
-      setCurrentPage(1);
-      await fetchTotalNouveautes();
-      await fetchNouveautes(1);
-      // Notify navigation to clear the nouveautes badge immediately
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('nouveautes:updated', { detail: { count: 0 } }));
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setMarking(false);
-    }
-  }, [fetchNouveautes, fetchTotalNouveautes]);
 
   useEffect(() => {
-    fetchNouveautes(currentPage);
-    // Remonter en haut de la page lors du changement de page
-    window.scrollTo(0, 0);
-  }, [currentPage, fetchNouveautes]);
+    fetchNouveautes();
+  }, [fetchNouveautes]);
   
   // Plus de barre de recherche: on se contente de la pagination
 
   
   
-  // Recharger les films lors du changement de page
+  // Recharger la liste lors du changement d'onglet
   useEffect(() => {
-    fetchNouveautes(currentPage);
-  }, [currentPage, fetchNouveautes]);
-  
-  // Charger le nombre total de films au chargement initial
-  useEffect(() => {
-    fetchTotalNouveautes();
-  }, [fetchTotalNouveautes]);
-  
-  const handlePageChange = (page: number) => {
-    if (page < 1 || page > totalPages) return;
-    setCurrentPage(page);
-  };
+    fetchNouveautes();
+  }, [selectedTab, fetchNouveautes]);
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-950 via-slate-900 to-gray-950 px-4 py-12 font-sans">
@@ -180,12 +128,12 @@ export default function NouveautesPage() {
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 font-display">
             Nouveautés
           </h1>
-          {/* Toggle Films / Séries and Mark button shown only when there are results */}
+          {/* Toggle Films / Séries */}
           {!loading && nouveautes.length > 0 && (
             <>
               <div className="mt-2 flex items-center justify-center gap-3">
                 <button
-                  onClick={() => { setSelectedTab('films'); setCurrentPage(1); }}
+                  onClick={() => { setSelectedTab('films'); }}
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                     selectedTab === 'films'
                       ? 'relative overflow-hidden text-white border-0 bg-[linear-gradient(90deg,_#6366f1_0%,_#a855f7_50%,_#ec4899_100%)]'
@@ -195,7 +143,7 @@ export default function NouveautesPage() {
                   Films
                 </button>
                 <button
-                  onClick={() => { setSelectedTab('series'); setCurrentPage(1); }}
+                  onClick={() => { setSelectedTab('series'); }}
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                     selectedTab === 'series'
                       ? 'relative overflow-hidden text-white border-0 bg-[linear-gradient(90deg,_#6366f1_0%,_#a855f7_50%,_#ec4899_100%)]'
@@ -203,19 +151,6 @@ export default function NouveautesPage() {
                   }`}
                 >
                   Séries
-                </button>
-              </div>
-              <div className="mt-4 flex items-center justify-center">
-                <button
-                  onClick={markAsRead}
-                  disabled={marking}
-                  className={`px-5 py-2 rounded-full text-sm font-semibold transition-colors border ${
-                    marking
-                      ? 'border-white/20 text-white/60 bg-white/5 cursor-not-allowed'
-                      : 'border-white/20 text-white/90 hover:bg-white/10'
-                  }`}
-                >
-                  {marking ? 'Nettoyage…' : 'Marquer comme lu'}
                 </button>
               </div>
             </>
@@ -284,93 +219,7 @@ export default function NouveautesPage() {
           </motion.div>
         )}
         
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-4"
-          >
-            <div className="text-sm text-gray-400">
-              Page {currentPage} sur {totalPages}
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handlePageChange(1)}
-                disabled={currentPage === 1}
-                className="px-3 py-1.5 rounded-lg border border-gray-700 text-sm font-medium text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white/5 flex items-center"
-              >
-                {'<<'}
-              </button>
-              
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="p-2 rounded-lg border border-gray-700 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white/5"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              
-              <div className="flex items-center gap-1">
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  // Calculer la plage de pages à afficher
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
-                  
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => handlePageChange(pageNum)}
-                      className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${
-                        currentPage === pageNum 
-                          ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg shadow-blue-500/20' 
-                          : 'border border-gray-700 text-white hover:bg-white/5'
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
-                
-
-              </div>
-              
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="p-2 rounded-lg border border-gray-700 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white/5"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-              
-              <button
-                onClick={() => handlePageChange(totalPages)}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1.5 rounded-lg border border-gray-700 text-sm font-medium text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white/5 flex items-center"
-              >
-                {'>>'}
-              </button>
-            </div>
-            
-            <div className="text-sm text-gray-400">
-              {((currentPage - 1) * NOUVEAUTES_PER_PAGE) + 1}-{Math.min(currentPage * NOUVEAUTES_PER_PAGE, nouveautes.length + ((currentPage - 1) * NOUVEAUTES_PER_PAGE))} sur {totalPages * NOUVEAUTES_PER_PAGE}
-            </div>
-          </motion.div>
-        )}
+        {/* Plus de pagination: on affiche simplement jusqu'à 25 éléments */}
       </div>
     </main>
   );
