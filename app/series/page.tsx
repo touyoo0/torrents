@@ -73,6 +73,8 @@ export default function SeriesPage() {
   const [selectedGenre, setSelectedGenre] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('latest');
+  // Mémorise la dernière recherche validée (querystring sans limit/offset)
+  const [lastQuery, setLastQuery] = useState<string>('');
   
   // Liste prédéfinie des genres
   const allGenres = [
@@ -115,28 +117,16 @@ export default function SeriesPage() {
     return ranges;
   }, [currentYear]);
 
-  const fetchSeries = useCallback(async (page: number) => {
+  // Récupère les séries pour une page donnée en utilisant la dernière recherche validée
+  const fetchSeries = useCallback(async (page: number, queryOverride?: string) => {
     setLoading(true);
     const offset = (page - 1) * SERIES_PER_PAGE;
-    
-    // Construire les paramètres de requête
-    const params = new URLSearchParams({
-      limit: SERIES_PER_PAGE.toString(),
-      offset: offset.toString(),
-      ...(searchQuery && { q: searchQuery }),
-      ...(selectedGenre !== 'all' && { genre: selectedGenre }),
-      ...(sortBy && { sort: sortBy })
-    });
-    
-    // Gérer les plages d'années
-    if (selectedYear !== 'all') {
-      const yearRange = yearRanges.find(range => range.value === selectedYear);
-      if (yearRange) {
-        params.append('startYear', yearRange.startYear.toString());
-        params.append('endYear', yearRange.endYear.toString());
-      }
-    }
-    
+    // Utilise la query validée (queryOverride si fourni, sinon lastQuery)
+    const baseQuery = queryOverride ?? lastQuery;
+    const params = new URLSearchParams(baseQuery);
+    params.set('limit', SERIES_PER_PAGE.toString());
+    params.set('offset', offset.toString());
+
     const res = await fetch(`/api/series?${params.toString()}`);
     
     if (res.ok) {
@@ -159,7 +149,7 @@ export default function SeriesPage() {
       setTotalPages(Math.ceil(total / SERIES_PER_PAGE));
     }
     setLoading(false);
-  }, [searchQuery, selectedGenre, selectedYear, sortBy, yearRanges]);
+  }, [lastQuery]);
   
   // Fonction pour récupérer uniquement le nombre total de séries
   const fetchTotalSeries = useCallback(async () => {
@@ -174,24 +164,18 @@ export default function SeriesPage() {
     fetchSeries(currentPage);
     // Remonter en haut de la page lors du changement de page
     window.scrollTo(0, 0);
-  }, [currentPage, fetchSeries]);
+  }, [currentPage]);
   
   // Fonction pour déclencher la recherche
   const handleSearch = useCallback(() => {
     setCurrentPage(1);
-    // Appel direct à fetch avec les paramètres actuels
-    const offset = 0; // Première page
-    
-    // Construire les paramètres de requête
+    // Construire les paramètres de requête (sans limit/offset)
     const params = new URLSearchParams({
-      limit: SERIES_PER_PAGE.toString(),
-      offset: offset.toString(),
       ...(searchQuery && { q: searchQuery }),
       ...(selectedGenre !== 'all' && { genre: selectedGenre }),
       ...(sortBy && { sort: sortBy })
     });
-    
-    // Gérer les plages d'années
+
     if (selectedYear !== 'all') {
       const yearRange = yearRanges.find(range => range.value === selectedYear);
       if (yearRange) {
@@ -199,41 +183,12 @@ export default function SeriesPage() {
         params.append('endYear', yearRange.endYear.toString());
       }
     }
-    
-    // Effectuer la recherche
-    console.log('Requête API envoyée:', `/api/series?${params.toString()}`);
-    setLoading(true);
-    
-    fetch(`/api/series?${params.toString()}`)
-      .then(res => {
-        console.log('Réponse reçue, statut:', res.status);
-        if (!res.ok) {
-          throw new Error(`Erreur HTTP: ${res.status}`);
-        }
-        return res.json();
-      })
-      .then(data => {
-        console.log('Données reçues:', data);
-        if (data && Array.isArray(data.series)) {
-          console.log('Nombre de séries reçues:', data.series.length);
-          setSeries(data.series);
-          setTotalPages(Math.ceil(data.total / SERIES_PER_PAGE));
-        } else {
-          console.error('Format de données inattendu:', data);
-          setSeries([]);
-          setTotalPages(1);
-        }
-      })
-      .catch(error => {
-        console.error('Erreur lors de la recherche:', error);
-        setSeries([]);
-        setTotalPages(1);
-      })
-      .finally(() => {
-        console.log('Fin du chargement');
-        setLoading(false);
-      });
-  }, [searchQuery, selectedGenre, selectedYear, sortBy, yearRanges]);
+
+    const queryStr = params.toString();
+    setLastQuery(queryStr);
+    console.log('Requête API (validée):', `/api/series?${queryStr}&limit=${SERIES_PER_PAGE}&offset=0`);
+    fetchSeries(1, queryStr);
+  }, [searchQuery, selectedGenre, selectedYear, sortBy, yearRanges, fetchSeries]);
   
   // Recherche automatique après un délai (désactivé au profit du bouton Rechercher)
   // useEffect(() => {
@@ -244,10 +199,7 @@ export default function SeriesPage() {
   //   return () => clearTimeout(timer);
   // }, [searchQuery, selectedGenre, selectedYear, sortBy]);
   
-  // Recharger les séries lors du changement de page
-  useEffect(() => {
-    fetchSeries(currentPage);
-  }, [currentPage, fetchSeries]);
+  // Nettoyage: éviter un deuxième effet redondant
   
   // Charger le nombre total de séries au chargement initial
   useEffect(() => {

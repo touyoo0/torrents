@@ -70,7 +70,9 @@ export async function GET(req: NextRequest) {
     if (categorie === 'serie') {
       whereClause += " AND categorie = 'Série'";
     } else if (categorie === 'films') {
-      whereClause += " AND categorie != 'Série'";
+      whereClause += " AND categorie IN ('Film','Film d''animation')";
+    } else if (categorie === 'animes') {
+      whereClause += " AND categorie = 'Série d''animation'";
     }
 
     const [rows] = await pool.query<TorrentRow[]>(

@@ -40,7 +40,7 @@ export default function Navigation() {
     // and prevent Films/Séries from being marked active even on their subroutes.
     if (from === 'nouveautes') {
       if (path === '/nouveautes') return true;
-      if (path === '/movies' || path === '/series') return false;
+      if (path === '/movies' || path === '/series' || path === '/animes') return false;
     }
     return pathname === path || pathname.startsWith(`${path}/`);
   };
@@ -63,6 +63,9 @@ export default function Navigation() {
             </NavLink>
             <NavLink href="/series" active={isActive('/series')}>
               Séries
+            </NavLink>
+            <NavLink href="/animes" active={isActive('/animes')}>
+              Animés
             </NavLink>
             <NavLink href="/books" active={isActive('/books')}>
               Livres
@@ -131,6 +134,9 @@ export default function Navigation() {
                 </MobileNavLink>
                 <MobileNavLink href="/series" active={isActive('/series')} onClick={() => setIsMenuOpen(false)}>
                   Séries
+                </MobileNavLink>
+                <MobileNavLink href="/animes" active={isActive('/animes')} onClick={() => setIsMenuOpen(false)}>
+                  Animés
                 </MobileNavLink>
                 <MobileNavLink href="/books" active={isActive('/books')} onClick={() => setIsMenuOpen(false)}>
                   Livres

@@ -1,7 +1,8 @@
 "use client";
-import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { motion, AnimatePresence, Variants } from "framer-motion";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
+import { motion, Variants } from "framer-motion";
 import { FiFilm, FiLoader } from "react-icons/fi";
+import Link from 'next/link';
 
 // Configuration des couleurs pour les cartes
 const cardThemes = [
@@ -40,7 +41,7 @@ const item: Variants = {
   },
 };
 
-interface Movie {
+interface Anime {
   id: number;
   title: string;
   year: string;
@@ -59,21 +60,20 @@ interface YearRange {
   endYear: number;
 }
 
-const MOVIES_PER_PAGE = 20; // Réduit pour améliorer les performances de chargement
+const ANIMES_PER_PAGE = 20;
 
-export default function MoviesPage() {
-  const [movies, setMovies] = useState<Movie[]>([]);
+export default function AnimesPage() {
+  const [animes, setAnimes] = useState<Anime[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [overviewMovie, setOverviewMovie] = useState<Movie | null>(null);
   
   // États pour la recherche et les filtres
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('latest');
-  // Mémorise la dernière recherche validée (querystring sans limit/offset)
+  // Mémorise la dernière requête validée (sans limit/offset)
   const [lastQuery, setLastQuery] = useState<string>('');
   
   // Liste prédéfinie des genres
@@ -87,7 +87,6 @@ export default function MoviesPage() {
   const currentYear = new Date().getFullYear();
   const yearRanges: YearRange[] = useMemo(() => {
     const ranges: YearRange[] = [];
-    // Ajouter les décennies jusqu'aux années 90
     for (let year = 1950; year < 1990; year += 10) {
       ranges.push({
         label: `Années ${year.toString().substring(2)}`,
@@ -96,14 +95,12 @@ export default function MoviesPage() {
         endYear: year + 9
       });
     }
-    // Ajouter les années 90
     ranges.push({
       label: 'Années 90',
       value: 'decade_1990',
       startYear: 1990,
       endYear: 1999
     });
-    // Ajouter les années individuelles à partir de 2000 jusqu'à l'année en cours
     for (let year = 2000; year <= currentYear; year++) {
       ranges.push({
         label: year.toString(),
@@ -112,61 +109,48 @@ export default function MoviesPage() {
         endYear: year
       });
     }
-    // Trier par année décroissante
     ranges.sort((a, b) => b.startYear - a.startYear);
     return ranges;
   }, [currentYear]);
 
-  // Récupère les films pour une page donnée en utilisant la dernière recherche validée
-  const fetchMovies = useCallback(async (page: number, queryOverride?: string) => {
+  // Récupère les animes pour une page donnée en utilisant la dernière requête validée
+  const fetchAnimes = useCallback(async (page: number, queryOverride?: string) => {
     setLoading(true);
-    const offset = (page - 1) * MOVIES_PER_PAGE;
-    // Utilise la query validée (queryOverride si fourni, sinon lastQuery)
+    const offset = (page - 1) * ANIMES_PER_PAGE;
     const baseQuery = queryOverride ?? lastQuery;
     const params = new URLSearchParams(baseQuery);
-    params.set('limit', MOVIES_PER_PAGE.toString());
+    params.set('limit', ANIMES_PER_PAGE.toString());
     params.set('offset', offset.toString());
 
-    const res = await fetch(`/api/movies?${params.toString()}`);
-    
+    const res = await fetch(`/api/animes?${params.toString()}`);
     if (res.ok) {
       const data = await res.json();
-      const { movies: newMovies, total } = data;
-      
-      // Vérifier s'il y a des doublons
+      const { animes: newAnimes, total } = data;
       const uniqueTitles = new Set<string>();
-      const filteredMovies = newMovies.filter((movie: Movie) => {
-        if (uniqueTitles.has(movie.title)) {
-          return false; // Ignorer les doublons
-        }
-        uniqueTitles.add(movie.title);
+      const filtered = newAnimes.filter((a: Anime) => {
+        if (uniqueTitles.has(a.title)) return false;
+        uniqueTitles.add(a.title);
         return true;
       });
-      
-      setMovies(filteredMovies);
-      
-      // Utiliser le nombre total de films renvoyé par l'API
-      setTotalPages(Math.ceil(total / MOVIES_PER_PAGE));
+      setAnimes(filtered);
+      setTotalPages(Math.ceil(total / ANIMES_PER_PAGE));
     }
     setLoading(false);
   }, [lastQuery]);
-  
-  // Fonction pour récupérer uniquement le nombre total de films
-  const fetchTotalMovies = useCallback(async () => {
-    const res = await fetch(`/api/movies?count=true`);
+
+  const fetchTotalAnimes = useCallback(async () => {
+    const res = await fetch(`/api/animes?count=true`);
     if (res.ok) {
       const data = await res.json();
-      setTotalPages(Math.ceil(data.total / MOVIES_PER_PAGE));
+      setTotalPages(Math.ceil(data.total / ANIMES_PER_PAGE));
     }
   }, []);
 
   useEffect(() => {
-    fetchMovies(currentPage);
-    // Remonter en haut de la page lors du changement de page
+    fetchAnimes(currentPage);
     window.scrollTo(0, 0);
   }, [currentPage]);
-  
-  // Fonction pour déclencher la recherche
+
   const handleSearch = useCallback(() => {
     setCurrentPage(1);
     // Construire les paramètres de requête (sans limit/offset)
@@ -175,7 +159,6 @@ export default function MoviesPage() {
       ...(selectedGenre !== 'all' && { genre: selectedGenre }),
       ...(sortBy && { sort: sortBy })
     });
-
     if (selectedYear !== 'all') {
       const yearRange = yearRanges.find(range => range.value === selectedYear);
       if (yearRange) {
@@ -183,29 +166,17 @@ export default function MoviesPage() {
         params.append('endYear', yearRange.endYear.toString());
       }
     }
-
     const queryStr = params.toString();
     setLastQuery(queryStr);
-    console.log('Requête API (validée):', `/api/movies?${queryStr}&limit=${MOVIES_PER_PAGE}&offset=0`);
-    fetchMovies(1, queryStr);
-  }, [searchQuery, selectedGenre, selectedYear, sortBy, yearRanges, fetchMovies]);
-  
-  // Recherche automatique après un délai (désactivé au profit du bouton Rechercher)
-  // useEffect(() => {
-  //   const timer = setTimeout(() => {
-  //     fetchMovies(1);
-  //   }, 300);
-  //   
-  //   return () => clearTimeout(timer);
-  // }, [searchQuery, selectedGenre, selectedYear, sortBy]);
-  
-  // Nettoyage: éviter un deuxième effet redondant
-  
-  // Charger le nombre total de films au chargement initial
+    fetchAnimes(1, queryStr);
+  }, [searchQuery, selectedGenre, selectedYear, sortBy, yearRanges, fetchAnimes]);
+
+  // Nettoyage: suppression de l'effet redondant de rechargement
+
   useEffect(() => {
-    fetchTotalMovies();
-  }, [fetchTotalMovies]);
-  
+    fetchTotalAnimes();
+  }, [fetchTotalAnimes]);
+
   const handlePageChange = (page: number) => {
     if (page < 1 || page > totalPages) return;
     setCurrentPage(page);
@@ -221,7 +192,7 @@ export default function MoviesPage() {
           className="text-center mb-6 sm:mb-8"
         >
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 font-display">
-            Films
+            Animés
           </h1>
           {/* Barre sticky: recherche + filtres */}
           <div className="w-full max-w-4xl mx-auto mb-6 sticky top-16 z-30">
@@ -230,7 +201,7 @@ export default function MoviesPage() {
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Rechercher un film..."
+                  placeholder="Rechercher un anime..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -300,7 +271,7 @@ export default function MoviesPage() {
                     <option value="title_desc">Titre (Z-A)</option>
                   </select>
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-                    <svg className="fill-current h-4 w-4 md:h-5 md:w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
                       <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
                     </svg>
                   </div>
@@ -351,13 +322,13 @@ export default function MoviesPage() {
               className="flex items-center justify-center gap-3 px-6 py-3 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-full backdrop-blur-sm border border-white/5 shadow-lg"
             >
               <FiLoader className="w-5 h-5 text-blue-400 animate-spin" />
-              <span className="text-blue-300 font-medium">Chargement des films...</span>
+              <span className="text-blue-300 font-medium">Chargement des animes...</span>
             </motion.div>
           </motion.div>
         )}
 
         {loading ? (
-          // Skeletons pendant chargement
+          // Skeletons
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8 mt-6">
             {Array.from({ length: 10 }).map((_, i) => (
               <div key={i} className="h-full">
@@ -381,14 +352,14 @@ export default function MoviesPage() {
             animate="show"
             className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8 mt-6"
           >
-            {movies.length === 0 ? (
+            {animes.length === 0 ? (
               <div className="col-span-full text-center py-12 text-gray-400">
-                Aucun film trouvé avec ces critères de recherche.
+                Aucun anime trouvé avec ces critères de recherche.
               </div>
             ) : (
-              movies.map((movie, index) => (
-                <motion.div key={movie.id} variants={item} className="h-full">
-                  <MovieCard movie={movie} index={index} />
+              animes.map((anime, index) => (
+                <motion.div key={anime.id} variants={item} className="h-full">
+                  <AnimeCard anime={anime} index={index} />
                 </motion.div>
               ))
             )}
@@ -428,7 +399,6 @@ export default function MoviesPage() {
               
               <div className="flex items-center gap-1">
                 {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  // Calculer la plage de pages à afficher
                   let pageNum;
                   if (totalPages <= 5) {
                     pageNum = i + 1;
@@ -454,8 +424,6 @@ export default function MoviesPage() {
                     </button>
                   );
                 })}
-                
-
               </div>
               
               <button
@@ -478,7 +446,7 @@ export default function MoviesPage() {
             </div>
             
             <div className="text-sm text-gray-400">
-              {((currentPage - 1) * MOVIES_PER_PAGE) + 1}-{Math.min(currentPage * MOVIES_PER_PAGE, movies.length + ((currentPage - 1) * MOVIES_PER_PAGE))} sur {totalPages * MOVIES_PER_PAGE}
+              {((currentPage - 1) * ANIMES_PER_PAGE) + 1}-{Math.min(currentPage * ANIMES_PER_PAGE, animes.length + ((currentPage - 1) * ANIMES_PER_PAGE))} sur {totalPages * ANIMES_PER_PAGE}
             </div>
           </motion.div>
         )}
@@ -487,13 +455,11 @@ export default function MoviesPage() {
   );
 }
 
-import Link from 'next/link';
-
-function MovieCard({ movie, index }: { movie: Movie; index: number }) {
+function AnimeCard({ anime, index }: { anime: Anime; index: number }) {
   const theme = cardThemes[index % cardThemes.length];
 
   return (
-    <Link href={`/movies/title/${encodeURIComponent(movie.title)}`} className="group h-full block p-1.5">
+    <Link href={`/animes/title/${encodeURIComponent(anime.title)}`} className="group h-full block p-1.5">
       <div className="relative h-full overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl transition-all duration-500 hover:shadow-purple-500/20 border-2 border-white/20 group-hover:border-white/40">
         {/* Effet de bordure animée */}
         <div className={`absolute inset-0 rounded-2xl p-[2px]`}>
@@ -501,14 +467,13 @@ function MovieCard({ movie, index }: { movie: Movie; index: number }) {
         </div>
 
         <div className="relative z-10 flex h-full flex-col">
-          {/* Image avec effet de zoom */}
+          {/* Image */}
           <div className="relative aspect-[2/3] overflow-hidden rounded-t-2xl border-b border-white/5 bg-slate-800">
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10"></div>
-            
-            {movie.poster_url ? (
+            {anime.poster_url ? (
               <motion.img
-                src={movie.poster_url}
-                alt={movie.title}
+                src={anime.poster_url}
+                alt={anime.title}
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 style={{ objectPosition: 'center top' }}
                 initial={{ opacity: 0 }}
@@ -520,21 +485,18 @@ function MovieCard({ movie, index }: { movie: Movie; index: number }) {
                 <FiFilm className="h-16 w-16 text-slate-600" />
               </div>
             )}
-
-            {/* Badge d'année */}
-            {movie.year && (
+            {anime.year && (
               <motion.div 
                 className="absolute bottom-4 left-4 z-20 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 px-3 py-1 text-xs font-semibold text-white shadow-lg"
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: index * 0.05 + 0.2 }}
               >
-                {movie.year}
+                {anime.year}
               </motion.div>
             )}
           </div>
           
-          {/* Contenu texte */}
           <div className="flex flex-1 flex-col p-5 bg-gradient-to-b from-transparent to-black/20">
             <motion.h2 
               className="mb-2 text-center text-lg font-bold text-white line-clamp-2"
@@ -542,28 +504,9 @@ function MovieCard({ movie, index }: { movie: Movie; index: number }) {
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: index * 0.05 + 0.1 }}
             >
-              {movie.title}
+              {anime.title}
             </motion.h2>
-            
-            <div className="mt-auto pt-3">
-              <div className="flex flex-wrap justify-center gap-2">
-                {movie.genres && movie.genres.split(',').map((g, i) => (
-                  <motion.span 
-                    key={g}
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ 
-                      delay: index * 0.05 + 0.15 + (i * 0.05),
-                      type: "spring",
-                      stiffness: 300
-                    }}
-                    className="inline-block rounded-full bg-white/5 px-3 py-1 text-xs font-medium text-white/80 backdrop-blur-sm transition-all hover:bg-white/20 hover:text-white border border-white/10 hover:border-white/30"
-                  >
-                    {g.trim()}
-                  </motion.span>
-                ))}
-              </div>
-            </div>
+            {/* Genres supprimés pour les animes */}
           </div>
         </div>
       </div>
