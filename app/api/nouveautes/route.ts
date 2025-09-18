@@ -15,11 +15,10 @@ interface TorrentRow extends RowDataPacket {
   overview: string;
   release_date: string;
   categorie: string;
-  created_at: string;
 }
 
 // This endpoint now ignores any user/IP data and simply returns the latest
-// distinct titles by created_at.
+// distinct titles by release_date.
 
 export async function GET(req: NextRequest) {
   try {
@@ -45,13 +44,13 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Get latest distinct titles by created_at (most recent entry per title)
+    // Get latest distinct titles by release_date (most recent entry per title)
     const [sortedIds] = await pool.query<RowDataPacket[]>(
       `SELECT MIN(id) as id
        FROM ygg_torrents_new
        ${whereClause}
        GROUP BY title
-       ORDER BY MAX(created_at) DESC
+       ORDER BY MAX(release_date) DESC
        LIMIT ?`,
       [limit]
     ) as [RowDataPacket[], FieldPacket[]];
@@ -76,11 +75,10 @@ export async function GET(req: NextRequest) {
         t1.genres,
         t1.overview,
         t1.release_date,
-        t1.categorie,
-        t1.created_at
+        t1.categorie
       FROM ygg_torrents_new t1
       WHERE t1.id IN (${placeholders})
-      ORDER BY t1.created_at DESC`,
+      ORDER BY t1.release_date DESC`,
       [...idList]
     );
 
